@@ -1,159 +1,13 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Famfrit Gathering Market</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<style>
-/* Layout: control bar over a sortable ledger table; a drawer slides in from the right with the price check for one item. */
-:root {
-  --bg: #f4f5f7;
-  --surface: #ffffff;
-  --sunken: #eceef2;
-  --line: #d9dde4;
-  --fg: #1b1f27;
-  --muted: #5d6573;
-  --gil: #9a6b00;
-  --gil-soft: #f6ecd2;
-  --min: #a5521f;
-  --min-soft: #f7e6da;
-  --btn: #2f7a3e;
-  --btn-soft: #e0f0e3;
-  --good: #2f7a3e;
-  --warn: #a86400;
-  --bad: #b3261e;
-  --focus: #2b5fd9;
-  --font-display: "Cinzel", "Trajan Pro", Georgia, serif;
-  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #11141a; --surface: #181c24; --sunken: #1f2430; --line: #2c3240;
-    --fg: #e7e9ee; --muted: #9aa2b1; --gil: #e2b44b; --gil-soft: #3a2f14;
-    --min: #e89262; --min-soft: #3a2518; --btn: #74c487; --btn-soft: #1c3322;
-    --good: #74c487; --warn: #e8a64a; --bad: #f08a80; --focus: #7aa2ff;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #11141a; --surface: #181c24; --sunken: #1f2430; --line: #2c3240;
-  --fg: #e7e9ee; --muted: #9aa2b1; --gil: #e2b44b; --gil-soft: #3a2f14;
-  --min: #e89262; --min-soft: #3a2518; --btn: #74c487; --btn-soft: #1c3322;
-  --good: #74c487; --warn: #e8a64a; --bad: #f08a80; --focus: #7aa2ff;
-  color-scheme: dark;
-}
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-html, body { margin: 0; }
-body { background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font-body); }
-.wrap { max-width: 1280px; margin: 0 auto; padding-inline: 20px; padding-block: 20px 48px; display: grid; gap: 16px; }
-button, input, select { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-
-header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
-header.top h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.7rem; letter-spacing: .02em; margin: 0; text-wrap: balance; }
-header.top .where { color: var(--muted); font-size: .85rem; letter-spacing: .06em; text-transform: uppercase; }
-.status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: .85rem; }
-.btn { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
-.btn:hover { border-color: var(--muted); }
-.btn.primary { background: var(--gil); border-color: var(--gil); color: var(--surface); font-weight: 600; }
-.btn:disabled { opacity: .55; cursor: progress; }
-
-.lookup { display: grid; gap: 6px; background: var(--surface); border: 1px solid var(--gil); border-radius: 8px; padding: 14px 16px; }
-.lookup .hint { color: var(--muted); font-size: .8rem; }
-.combo { position: relative; }
-.combo input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; font-size: 1rem; }
-.combo ul { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / .18); max-height: 360px; overflow-y: auto; }
-.combo li { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 6px; cursor: pointer; }
-.combo li img { width: 26px; height: 26px; border-radius: 4px; flex: none; }
-.combo li .c { color: var(--muted); font-size: .8rem; margin-left: auto; white-space: nowrap; }
-.combo li[aria-selected="true"], .combo li:hover { background: var(--gil-soft); }
-.combo li.none { color: var(--muted); cursor: default; }
-.combo li.none:hover { background: none; }
-.verdict { display: grid; gap: 4px; border-radius: 8px; padding: 12px 14px; background: var(--sunken); border-left: 3px solid var(--muted); }
-.verdict b { font-size: 1rem; }
-.verdict.good { border-left-color: var(--good); }
-.verdict.warn { border-left-color: var(--warn); }
-.verdict.bad { border-left-color: var(--bad); }
-.verdict span { font-size: .9rem; color: var(--muted); }
-.controls { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
-.field { display: grid; gap: 4px; }
-.field label, .lbl { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
-.field input[type=search], .field input[type=number] { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; }
-.field input[type=search] { width: 220px; max-width: 100%; }
-.field input[type=number] { width: 78px; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.seg button { border: 0; background: var(--bg); padding: 7px 12px; cursor: pointer; border-right: 1px solid var(--line); }
-.seg button:last-child { border-right: 0; }
-.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); font-weight: 600; }
-.check { display: flex; align-items: center; gap: 6px; padding-block: 7px; cursor: pointer; user-select: none; }
-
-.summary { display: flex; flex-wrap: wrap; gap: 8px 28px; color: var(--muted); font-size: .9rem; }
-.summary b { color: var(--fg); font-weight: 600; }
-.progress { height: 3px; background: var(--sunken); border-radius: 2px; overflow: hidden; }
-.progress > i { display: block; height: 100%; width: 0; background: var(--gil); transition: width .25s; }
-.notice { border: 1px solid var(--line); border-left: 3px solid var(--warn); background: var(--surface); padding: 10px 14px; border-radius: 6px; }
-.notice.bad { border-left-color: var(--bad); }
-
-.tablebox { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
-table { width: 100%; border-collapse: collapse; }
-th, td { padding: 9px 12px; text-align: left; white-space: nowrap; }
-thead th { position: sticky; top: 0; background: var(--sunken); font-size: .72rem; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); }
-th.r, td.r { text-align: right; }
-thead th button { all: unset; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
-thead th button:focus-visible { outline: 2px solid var(--focus); }
-thead th[aria-sort] button { color: var(--fg); }
-thead th .arrow { font-size: .8em; }
-tbody tr { border-bottom: 1px solid var(--line); cursor: pointer; }
-tbody tr:last-child { border-bottom: 0; }
-tbody tr:hover { background: var(--sunken); }
-tbody tr.sel { background: var(--gil-soft); }
-td.item { display: flex; align-items: center; gap: 10px; min-width: 220px; }
-td.item img { width: 28px; height: 28px; border-radius: 4px; flex: none; }
-td.item .nm { font-weight: 500; }
-td.item .zn { color: var(--muted); font-size: .78rem; }
-.chip { display: inline-block; font-size: .72rem; font-weight: 600; padding: 2px 7px; border-radius: 999px; margin-right: 4px; letter-spacing: .03em; }
-.chip.MIN { background: var(--min-soft); color: var(--min); }
-.chip.BTN { background: var(--btn-soft); color: var(--btn); }
-.chip.timed { background: var(--sunken); color: var(--muted); }
-.sales { font-weight: 600; }
-.zero { color: var(--muted); }
-.gil::after { content: " g"; color: var(--muted); font-size: .85em; }
-.age.stale { color: var(--warn); }
-.age.old { color: var(--bad); }
-.empty { padding: 28px; text-align: center; color: var(--muted); }
-
-/* drawer */
-.scrim { position: fixed; inset: 0; background: rgb(0 0 0 / .35); }
-/* Wide screens: the panel sits beside the page, so search and the table stay usable while it is open. */
-@media (min-width: 900px) { .scrim { display: none !important; } }
-@media (min-width: 1150px) { body.panel-open .wrap { padding-right: 540px; } }
-.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100%); background: var(--surface); border-left: 1px solid var(--line); overflow-y: auto; padding-inline: 20px; padding-block: calc(env(safe-area-inset-top, 0px) + 18px) calc(env(safe-area-inset-bottom, 0px) + 28px); display: grid; gap: 18px; align-content: start; }
-.drawer h2 { font-family: var(--font-display); font-size: 1.3rem; margin: 0; text-wrap: balance; }
-.dhead { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
-.dhead .sub { color: var(--muted); font-size: .85rem; }
-.suggest { border: 1px solid var(--gil); background: var(--gil-soft); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; }
-.suggest .price { font-family: var(--font-mono); font-size: 2rem; font-weight: 500; color: var(--gil); }
-.suggest .why { font-size: .9rem; }
-.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
-.kv > div { background: var(--sunken); border-radius: 6px; padding: 8px 10px; }
-.kv .v { font-family: var(--font-mono); font-size: 1.05rem; }
-.sec { display: grid; gap: 8px; }
-.sec h3 { margin: 0; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.mini td, .mini th { padding: 6px 8px; font-size: .88rem; }
-.mini thead th { position: static; }
-.mini tbody tr { cursor: default; }
-.mini tbody tr:hover { background: none; }
-.tax { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 14px; font-size: .9rem; }
-.tax .best { color: var(--good); font-weight: 600; }
-.qrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-svg text { fill: var(--muted); font-family: var(--font-mono); font-size: 10px; }
-a { color: var(--focus); }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-@media (max-width: 640px) { .field input[type=search] { width: 100%; } .controls .field:first-child { flex: 1 1 100%; } }
-</style></head><body>
+<link rel="stylesheet" href="styles.css"></head><body>
 
 <div class="wrap">
+  <nav class="tabs" aria-label="Pages">
+    <a href="./" aria-current="page">Gathering market</a>
+    <a href="listings.html">My listings</a>
+  </nav>
   <header class="top">
     <div>
       <div class="where">Primal · Famfrit · Miner &amp; Botanist</div>
@@ -217,44 +71,16 @@ a { color: var(--focus); }
 <div class="scrim" id="scrim" hidden></div>
 <aside class="drawer" id="drawer" hidden aria-label="Price check"></aside>
 
+<script src="common.js"></script>
 <script>
 const ITEMS_RAW = [[5050,"Allagan Snail",29202,0,5,["Central Shroud"],0],[5516,"Beehive Chip",22611,0,5,["North Shroud"],0],[5432,"Bone Chip",22201,5,0,["Central Thanalan"],0],[4828,"Cinnamon",25019,0,5,["North Shroud"],0],[5106,"Copper Ore",21209,5,0,["Central Thanalan","Western Thanalan"],0],[5,"Earth Shard",20006,5,5,["Lower La Noscea","North Shroud","Upper La Noscea"],0],[2,"Fire Shard",20001,5,15,["Eastern Thanalan","Middle La Noscea","Western Thanalan"],0],[3,"Ice Shard",20003,5,5,["Central Shroud","Coerthas Central Highlands","South Shroud"],0],[5509,"Latex",22643,0,5,["Central Shroud","North Shroud"],0],[6,"Lightning Shard",20005,5,5,["Central Thanalan","Mor Dhona","Southern Thanalan"],0],[5396,"Maple Branch",22416,0,5,["Central Shroud","North Shroud"],0],[5380,"Maple Log",22408,0,5,["Central Shroud","North Shroud"],0],[5498,"Maple Sap",22642,0,5,["North Shroud"],0],[5488,"Muddy Water",22637,5,0,["Central Thanalan","Western Thanalan"],0],[28766,"Skybuilders' Iron Ore",21202,5,0,["Middle La Noscea"],0],[28765,"Skybuilders' Yew Log",22409,0,5,["East Shroud"],0],[7,"Water Shard",20002,5,15,["Eastern La Noscea","Western Thanalan"],0],[4,"Wind Shard",20004,5,5,["Central Shroud","Central Thanalan","East Shroud"],0],[5402,"Ash Branch",22416,0,10,["Central Shroud","North Shroud"],0],[5383,"Ash Log",22407,0,10,["Central Shroud","North Shroud"],0],[4831,"Cloves",25023,0,10,["Central Thanalan"],0],[5351,"Cock Feather",21902,0,10,["Central Thanalan"],0],[5352,"Crow Feather",21903,0,10,["Central Shroud"],0],[4803,"Kukuru Bean",25314,0,10,["Lower La Noscea"],0],[4809,"La Noscean Orange",25312,0,10,["Lower La Noscea"],0],[5124,"Obsidian",21452,10,0,["Western Thanalan"],0],[5513,"Potter's Clay",22634,10,0,["North Shroud"],0],[5133,"Raw Lapis Lazuli",21453,10,0,["North Shroud"],0],[5128,"Raw Sunstone",21453,10,0,["Lower La Noscea"],0],[5433,"Soiled Femur",22202,10,0,["Central Thanalan","Western Thanalan"],0],[5107,"Tin Ore",21203,10,0,["Central Thanalan","Western Thanalan"],0],[5534,"Tinolqa Mistletoe",25001,0,10,["Central Shroud","North Shroud"],0],[5110,"Zinc Ore",21210,10,0,["Central Thanalan","Western Thanalan"],0],[4781,"Alpine Parsnip",25215,0,15,["Central Thanalan"],0],[4830,"Black Pepper",25007,0,15,["Central Thanalan"],0],[4818,"Buffalo Beans",25353,0,15,["Central Shroud"],0],[5540,"Carnation",25003,0,15,["Central Shroud"],0],[4795,"Chanterelle",25401,0,15,["Central Shroud"],0],[4783,"Cieldalaes Spinach",25206,0,15,["Lower La Noscea"],0],[4804,"Cinderfoot Olive",25307,0,15,["Lower La Noscea"],0],[5519,"Cinnabar",22629,15,0,["Western Thanalan"],0],[4778,"Coerthan Carrot",25207,0,15,["Western Thanalan"],0],[5268,"Copper Sand",21006,15,0,["Western Thanalan"],0],[5343,"Cotton Boll",21652,0,15,["Central Shroud"],0],[5385,"Elm Log",22405,0,15,["Central Shroud"],0],[5267,"Fine Sand",21464,15,0,["Central Thanalan"],0],[4829,"Garlean Garlic",25006,0,15,["Western Thanalan"],0],[5560,"Grass Viper",22620,0,15,["Western Thanalan"],0],[4805,"Gridanian Chestnut",25302,0,15,["Central Shroud"],0],[4784,"Highland Parsley",25211,0,15,["Lower La Noscea"],0],[5514,"Humus",22628,0,15,["Central Shroud"],0],[5111,"Iron Ore",21202,15,0,["Western Thanalan"],0],[5269,"Iron Sand",21204,15,0,["Western Thanalan"],0],[4782,"La Noscean Lettuce",25219,0,15,["Middle La Noscea"],0],[5539,"Lavender",25002,0,15,["Central Shroud"],0],[4808,"Lowland Grapes",25309,0,15,["Lower La Noscea"],0],[4832,"Marjoram",25015,0,15,["Central Shroud"],0],[5341,"Moko Grass",21654,0,15,["Western Thanalan"],0],[4779,"Ogre Pumpkin",25210,0,15,["Western Thanalan"],0],[5228,"Ragstone",21454,15,0,["Central Thanalan"],0],[5518,"Rock Salt",22617,15,0,["Central Thanalan"],0],[4780,"Ruby Tomato",25209,0,15,["Middle La Noscea"],0],[4823,"Rye",25357,0,15,["Western Thanalan"],0],[28767,"Skybuilders' Fine Sand",21464,15,0,["Central Thanalan"],0],[28768,"Skybuilders' Hemp",21654,0,15,["Lower La Noscea"],0],[5342,"Straw",21653,0,15,["Middle La Noscea"],0],[4824,"Sunset Wheat",25357,0,15,["Middle La Noscea"],0],[5051,"Tree Toad",29233,0,15,["Central Shroud"],0],[4777,"Wild Onion",25203,0,15,["Western Thanalan"],0],[5538,"Yellow Ginseng",25005,0,15,["Central Thanalan"],0],[5524,"Alumen",22616,20,0,["Eastern Thanalan"],0],[5541,"Belladonna",25010,0,20,["East Shroud"],0],[7031,"Desert Seedling",22632,0,20,["Eastern Thanalan"],0],[4810,"Faerie Apple",25308,0,20,["East Shroud"],0],[4834,"Galago Mint",25016,0,20,["East Shroud"],0],[4796,"Gil Bun",25405,0,20,["East Shroud"],0],[7029,"Island Seedling",22631,0,20,["Western La Noscea"],0],[4820,"Lalafellin Lentil",25355,0,20,["Western La Noscea"],0],[5230,"Limestone",22615,20,0,["Western La Noscea"],0],[5229,"Mudstone",21455,20,0,["Western La Noscea"],0],[4786,"Nopales",25214,0,20,["Central Thanalan"],0],[4785,"Paprika",25018,0,20,["Western La Noscea"],0],[4787,"Popoto",25204,0,20,["Eastern Thanalan"],0],[5129,"Raw Danburite",21453,20,0,["Western La Noscea"],0],[5132,"Raw Fluorite",21453,20,0,["Eastern Thanalan"],0],[5130,"Raw Malachite",21453,20,0,["Eastern Thanalan"],0],[5131,"Raw Sphene",21453,20,0,["North Shroud"],0],[7030,"Shroud Seedling",22630,0,20,["East Shroud"],0],[4811,"Sun Lemon",25305,0,20,["Lower La Noscea"],0],[5465,"Sunrise Tellin",22254,20,0,["Western La Noscea"],0],[5563,"White Scorpion",22622,0,20,["Eastern Thanalan"],0],[5405,"Yew Branch",22416,0,20,["East Shroud"],0],[5386,"Yew Log",22409,0,20,["East Shroud"],0],[4835,"Ala Mhigan Mustard",25054,0,25,["Eastern Thanalan"],0],[4797,"Button Mushroom",25402,0,25,["Eastern Thanalan"],0],[5542,"Chamomile",25008,0,25,["Upper La Noscea"],0],[5155,"Earth Rock",21451,25,0,["South Shroud"],0],[5491,"Effervescent Water",22614,25,0,["South Shroud"],0],[5152,"Fire Rock",21451,25,0,["Upper La Noscea"],0],[4806,"Gridanian Walnut",25301,0,25,["South Shroud"],0],[5153,"Ice Rock",21451,25,0,["South Shroud"],0],[5156,"Lightning Rock",21451,25,0,["Upper La Noscea"],0],[5535,"Matron's Mistletoe",25001,0,25,["South Shroud"],0],[4821,"Millioncorn",25352,0,25,["Eastern Thanalan"],0],[6145,"Noble Grapes",24058,0,25,["Upper La Noscea"],0],[4836,"Pearl Ginger",25012,0,25,["Eastern Thanalan"],0],[4812,"Pixie Plums",25311,0,25,["Upper La Noscea"],0],[5113,"Silver Ore",21211,25,0,["South Shroud"],0],[5270,"Silver Sand",21204,25,0,["South Shroud"],0],[28772,"Skybuilders' Iron Sand",21204,25,0,["Eastern Thanalan"],0],[28916,"Skybuilders' Toad",29228,0,25,["Western Thanalan"],0],[4819,"Sticky Rice",25358,0,25,["Upper La Noscea"],0],[5388,"Walnut Log",22404,0,25,["South Shroud"],0],[5157,"Water Rock",21451,25,0,["Upper La Noscea"],0],[5154,"Wind Rock",21451,25,0,["South Shroud"],0],[52712,"All-purpose Pigment",21463,30,30,["Central Shroud","Central Thanalan","East Shroud"],0],[4813,"Alligator Pear",25313,0,30,["South Shroud"],0],[5528,"Bomb Ash",21001,30,0,["Southern Thanalan"],0],[5527,"Brimstone",22613,30,0,["Upper La Noscea"],0],[5359,"Chocobo Feather",21901,0,30,["South Shroud"],0],[11,"Earth Crystal",20012,30,30,["Garlemald","Heritage Found","Lakeland"],1],[8,"Fire Crystal",20007,30,30,["Amh Araeng","Eastern Thanalan","Elpis"],1],[9,"Ice Crystal",20009,30,30,["Coerthas Western Highlands","Heritage Found","Kholusia"],1],[4822,"Jade Peas",25353,0,30,["North Shroud"],0],[12,"Lightning Crystal",20011,30,30,["Central Thanalan","Coerthas Western Highlands","Elpis"],1],[4789,"Midland Cabbage",25208,0,30,["North Shroud"],0],[5559,"Moor Leech",22635,0,30,["North Shroud"],0],[5521,"Saltpeter",22615,30,0,["Eastern Thanalan"],0],[5523,"Silex",22610,30,0,["Southern Thanalan"],0],[5231,"Siltstone",21453,30,0,["Upper La Noscea"],0],[13,"Water Crystal",20008,30,30,["Eastern La Noscea","Il Mheg","Kozama'uka"],1],[10,"Wind Crystal",20010,30,30,["Amh Araeng","Central Shroud","East Shroud"],1],[4788,"Wizard Eggplant",25205,0,30,["North Shroud"],0],[5125,"Wyvern Obsidian",21467,30,0,["Eastern Thanalan"],0],[4790,"Aloe",25213,0,35,["Southern Thanalan"],0],[7011,"Bloodgrass",21653,0,35,["Southern Thanalan"],0],[4843,"Desert Saffron",25022,0,35,["Southern Thanalan"],0],[4838,"Dragon Pepper",25013,0,35,["Eastern La Noscea"],0],[5346,"Flax",21651,0,35,["South Shroud"],0],[7008,"Granite",22615,35,0,["Central Shroud"],0],[4839,"Laurel",25009,0,35,["Southern Thanalan"],0],[5543,"Mandrake",25004,0,35,["Eastern La Noscea"],0],[4837,"Midland Basil",25010,0,35,["Eastern La Noscea"],0],[5114,"Mythril Ore",21208,35,0,["Southern Thanalan"],0],[5271,"Mythril Sand",22650,35,0,["Southern Thanalan"],0],[5409,"Oak Branch",22416,0,35,["South Shroud"],0],[5390,"Oak Log",22401,0,35,["South Shroud"],0],[5138,"Raw Amethyst",21453,35,0,["Central Shroud"],0],[5139,"Raw Aquamarine",21453,35,0,["Eastern La Noscea"],0],[5134,"Raw Garnet",21453,35,0,["Eastern La Noscea"],0],[5135,"Raw Goshenite",21453,35,0,["Eastern La Noscea"],0],[5137,"Raw Heliodor",21453,35,0,["Southern Thanalan"],0],[5136,"Raw Peridot",21453,35,0,["Central Shroud"],0],[4791,"Salt Leek",25216,0,35,["Eastern La Noscea"],0],[28769,"Skybuilders' Ash Log",22407,0,35,["Central Shroud"],0],[28771,"Skybuilders' Electrum Ore",21217,35,0,["Upper La Noscea"],0],[28770,"Skybuilders' Rock Salt",22617,35,0,["Upper La Noscea"],0],[5562,"Tarantula",22619,0,35,["South Shroud"],0],[4798,"White Truffle",25404,0,35,["South Shroud"],0],[5360,"Wildfowl Feather",21904,0,35,["South Shroud"],0],[4842,"Almonds",25017,0,40,["Eastern La Noscea"],0],[5525,"Black Alumen",22604,40,0,["South Shroud"],0],[4814,"Blood Currants",25310,0,40,["South Shroud"],0],[5526,"Grenade Ash",21001,40,0,["Northern Thanalan"],0],[4807,"Iron Acorn",25304,0,40,["Eastern La Noscea"],0],[5168,"Jade",21252,40,0,["Coerthas Central Highlands"],0],[5391,"Mahogany Log",22410,0,40,["Eastern La Noscea"],0],[4793,"Maiden Artichoke",25220,0,40,["Eastern La Noscea"],0],[4840,"Mugwort",25020,0,40,["Eastern La Noscea"],0],[4844,"Nutmeg",25021,0,40,["Eastern La Noscea"],0],[4792,"Ramhorn Zucchini",25212,0,40,["Eastern La Noscea"],0],[5144,"Raw Spinel",21453,40,0,["South Shroud"],0],[5142,"Raw Tourmaline",21453,40,0,["South Shroud"],0],[5141,"Raw Zircon",21453,40,0,["Coerthas Central Highlands"],0],[4841,"Thyme",25020,0,40,["South Shroud"],0],[5564,"Black Scorpion",22621,0,45,["Upper La Noscea"],0],[5054,"Dart Frog",29228,0,45,["Upper La Noscea"],0],[5115,"Electrum Ore",21217,45,0,["Upper La Noscea"],0],[5272,"Electrum Sand",21214,45,0,["Upper La Noscea"],0],[7010,"Marble",21487,45,0,["Upper La Noscea"],0],[6146,"Mirror Apple",25308,0,45,["Coerthas Central Highlands"],0],[5536,"Mistletoe",25001,0,45,["Coerthas Central Highlands"],0],[5143,"Raw Amber",21453,45,0,["Eastern Thanalan"],0],[5140,"Raw Rubellite",21453,45,0,["Eastern Thanalan"],0],[5145,"Raw Turquoise",21453,45,0,["Upper La Noscea"],0],[4815,"Rolanberry",25306,0,45,["Upper La Noscea"],0],[4845,"Sagolii Sage",25009,0,45,["Upper La Noscea"],0],[28773,"Skybuilders' Flax",21651,0,45,["South Shroud"],0],[28774,"Skybuilders' Spring Water",22614,45,0,["Coerthas Central Highlands"],0],[5458,"Adamantoise Shell",22261,50,0,["Northern Thanalan"],0],[7592,"Apricot",25317,0,50,["Middle La Noscea"],1],[5158,"Astral Rock",21251,50,0,["Coerthas Central Highlands"],1],[5365,"Bamboo Stick",22451,0,50,["Upper La Noscea"],1],[5263,"Basilisk Egg",21215,50,0,["Northern Thanalan"],0],[4800,"Black Truffle",25403,0,50,["Eastern Thanalan"],1],[7595,"Blood Orange",25312,0,50,["Upper La Noscea"],1],[5403,"Cedar Branch",22416,0,50,["Coerthas Western Highlands"],0],[5384,"Cedar Log",22415,0,50,["Coerthas Western Highlands"],0],[5116,"Cobalt Ore",21216,50,0,["Northern Thanalan"],0],[6199,"Coblyn Larva",59433,50,0,["Eastern Thanalan"],1],[9518,"Cypress Log",22415,0,50,["Central Shroud"],1],[5121,"Darksteel Ore",21205,50,0,["Coerthas Central Highlands"],1],[5126,"Dragon Obsidian",21468,50,0,["Coerthas Western Highlands"],0],[6148,"Dzemael Tomato",25209,0,50,["Eastern La Noscea"],1],[7724,"Dzemael Tomato Seeds",27455,0,50,["Eastern La Noscea"],1],[17,"Earth Cluster",20018,50,50,["Mor Dhona"],1],[5394,"Ebony Log",22402,0,50,["Middle La Noscea"],1],[7588,"Ferberite",21203,50,0,["Northern Thanalan"],1],[14,"Fire Cluster",20013,50,50,["Middle La Noscea","Mor Dhona"],1],[5118,"Gold Ore",21212,50,0,["Eastern Thanalan"],1],[5273,"Gold Sand",21214,50,0,["Eastern Thanalan"],1],[7760,"Grade 3 La Noscean Topsoil",27403,50,0,["Middle La Noscea"],1],[7763,"Grade 3 Shroud Topsoil",27406,50,0,["South Shroud"],1],[7766,"Grade 3 Thanalan Topsoil",27409,50,0,["Western Thanalan"],1],[10095,"Gregarious Worm",27019,50,0,["Central Thanalan","Coerthas Central Highlands","Eastern Thanalan"],1],[6147,"Honey Lemon",25305,0,50,["Eastern La Noscea"],1],[7733,"Honey Lemon Seeds",27457,0,50,["Eastern La Noscea"],1],[15,"Ice Cluster",20015,50,50,["Mor Dhona"],1],[6209,"Kidragora",59442,0,50,["East Shroud"],1],[7593,"La Noscean Leek",25216,0,50,["Western La Noscea"],1],[5055,"Lava Toad",29223,0,50,["Southern Thanalan"],0],[18,"Lightning Cluster",20017,50,50,["Mor Dhona"],1],[7012,"Maiden Grass",21653,0,50,["Southern Thanalan"],0],[10098,"Mazlaya Greens",25016,0,50,["Central Shroud","East Shroud","Eastern Thanalan"],1],[7589,"Native Gold",20816,50,0,["Central Thanalan"],1],[5439,"Ogre Horn",22205,50,0,["Northern Thanalan"],0],[12896,"Old World Fig",25318,0,50,["The Dravanian Forelands"],1],[13765,"Old World Fig Seeds",27457,0,50,["The Dravanian Forelands"],1],[5120,"Platinum Ore",21213,50,0,["Southern Thanalan"],1],[4816,"Prickly Pineapple",25303,0,50,["Eastern La Noscea"],1],[7734,"Prickly Pineapple Seeds",27457,0,50,["Eastern La Noscea"],1],[9519,"Pumice",21454,50,0,["Eastern La Noscea"],1],[5147,"Raw Diamond",21453,50,0,["Central Thanalan"],1],[5148,"Raw Emerald",21453,50,0,["Central Thanalan"],1],[5150,"Raw Iolite",21453,50,0,["Northern Thanalan"],1],[5146,"Raw Ruby",21453,50,0,["Lower La Noscea"],1],[5151,"Raw Sapphire",21453,50,0,["Lower La Noscea"],1],[5149,"Raw Topaz",21453,50,0,["Northern Thanalan"],1],[10096,"Rosemary",25002,0,50,["East Shroud"],1],[5414,"Rosewood Branch",22416,0,50,["East Shroud"],0],[5393,"Rosewood Log",22411,0,50,["East Shroud"],0],[7590,"Scarlet Sap",22601,0,50,["North Shroud"],1],[7591,"Shroud Tea Leaves",25020,0,50,["Central Shroud"],1],[5350,"Silkworm Cocoon",21661,0,50,["East Shroud"],1],[5395,"Spruce Log",22413,0,50,["Coerthas Central Highlands"],1],[4846,"Thanalan Tea Leaves",25020,0,50,["Southern Thanalan"],0],[5537,"Thavnairian Mistletoe",25001,0,50,["Coerthas Central Highlands"],1],[5545,"Trillium",22627,0,50,["East Shroud"],1],[5546,"Trillium Bulb",22623,0,50,["East Shroud"],1],[5547,"Vampire Plant",25001,0,50,["Coerthas Central Highlands"],1],[10093,"Virgin Basilisk Egg",21215,50,0,["Northern Thanalan"],1],[6152,"Volcanic Rock Salt",22617,50,0,["Eastern La Noscea"],1],[19,"Water Cluster",20014,50,50,["Mor Dhona","Western Thanalan"],1],[8024,"Waterfowl Feather",21902,0,50,["Western La Noscea"],1],[16,"Wind Cluster",20016,50,50,["Mor Dhona"],1],[5108,"Yellow Copper Ore",21207,50,0,["Coerthas Western Highlands"],0],[7594,"Young Cieldalaes Spinach",25206,0,50,["Lower La Noscea"],1],[12941,"Chalcocite",21209,55,0,["The Dravanian Forelands"],0],[12884,"Chives",25035,0,55,["Coerthas Western Highlands"],1],[12882,"Coerthan Tea Leaves",25020,0,55,["Coerthas Western Highlands"],1],[13768,"Coerthan Tea Seeds",27451,0,55,["Coerthas Western Highlands"],1],[12585,"Dark Chestnut Branch",22416,0,55,["The Dravanian Forelands"],0],[12578,"Dark Chestnut Log",22420,0,55,["The Dravanian Forelands"],0],[12943,"Dravanian Mistletoe",25001,0,55,["The Churning Mists"],1],[12631,"Dravanian Spring Water",22614,55,0,["The Dravanian Forelands"],0],[5161,"Green Quartz",21459,55,0,["Coerthas Western Highlands"],0],[12880,"Highland Wheat",25357,0,55,["The Dravanian Forelands"],0],[5112,"Limonite",21206,55,0,["The Dravanian Forelands"],0],[12885,"Magma Beet",25223,0,55,["The Churning Mists"],0],[12883,"Mist Dill",25034,0,55,["Coerthas Western Highlands"],0],[12531,"Mythrite Sand",21218,55,0,["Coerthas Western Highlands"],0],[13767,"Pearl Sprout Seeds",27455,0,55,["Coerthas Western Highlands"],1],[12877,"Pearl Sprouts",25208,0,55,["Coerthas Western Highlands"],1],[12899,"Porcini",25401,0,55,["The Churning Mists"],1],[5109,"Pyrite",21207,55,0,["The Dravanian Forelands"],0],[12597,"Rainbow Cotton Boll",25032,0,55,["Coerthas Western Highlands"],0],[12553,"Raw Agate",21471,55,0,["The Dravanian Forelands"],0],[12551,"Raw Larimar",21472,55,0,["Coerthas Western Highlands"],0],[12559,"Raw Mormorion",21476,55,0,["Coerthas Western Highlands"],0],[12554,"Raw Star Ruby",21471,55,0,["The Dravanian Forelands"],0],[12555,"Raw Star Sapphire",21472,55,0,["The Dravanian Forelands"],0],[12552,"Raw Tiger's Eye",21474,55,0,["The Dravanian Forelands"],0],[28780,"Skybuilders' Dravanian Spring Water",22614,55,0,["The Dravanian Forelands"],0],[28778,"Skybuilders' Mythrite Sand",21218,55,0,["Coerthas Western Highlands"],0],[28776,"Skybuilders' Straw",21653,0,55,["The Dravanian Forelands"],0],[28779,"Skybuilders' Tea Leaves",25020,0,55,["The Sea of Clouds"],0],[12598,"Stalk of Ramie",21651,0,55,["The Dravanian Forelands"],0],[5162,"Yellow Quartz",21458,55,0,["Coerthas Western Highlands"],0],[12944,"Abalathian Mistletoe",25001,0,60,["The Sea of Clouds"],1],[12901,"Abalathian Rock Salt",22617,60,0,["The Sea of Clouds"],1],[12632,"Abalathian Spring Water",22614,60,0,["The Sea of Clouds"],0],[12538,"Adamantite Ore",21224,60,0,["Azys Lla"],1],[5226,"Astral Moraine",21463,60,0,["Coerthas Western Highlands"],1],[12536,"Aurum Regis Ore",21225,60,0,["The Churning Mists"],1],[12533,"Aurum Regis Sand",21220,60,0,["The Sea of Clouds"],0],[14190,"Beastkin Horn",22205,60,0,["The Dravanian Forelands"],0],[12586,"Birch Branch",22417,0,60,["The Sea of Clouds"],0],[12891,"Birch Sap",22642,0,60,["The Sea of Clouds"],0],[12970,"Black Soil",27404,0,60,["The Churning Mists","The Dravanian Forelands","The Dravanian Hinterlands"],1],[19976,"Bloodhemp",21654,0,60,["The Fringes"],0],[5160,"Blue Quartz",21457,60,0,["The Dravanian Hinterlands"],1],[12966,"Bright Fire Rock",21471,60,0,["The Churning Mists","The Dravanian Forelands","The Dravanian Hinterlands"],1],[12967,"Bright Lightning Rock",21475,60,0,["Coerthas Western Highlands","The Sea of Clouds"],1],[16722,"Brown Mushroom",25405,0,60,["The Churning Mists"],1],[14160,"Camphorwood Branch",22416,0,60,["The Churning Mists"],0],[14159,"Camphorwood Log",22405,0,60,["The Churning Mists"],0],[12900,"Chysahl Greens",25222,0,60,["Coerthas Western Highlands"],1],[12973,"Clary Sage",25009,0,60,["Coerthas Western Highlands","The Sea of Clouds"],1],[12897,"Cloud Banana",25319,0,60,["The Dravanian Hinterlands"],1],[13753,"Cloud Cotton Boll",21652,0,60,[],1],[12539,"Cloud Mica",21226,60,0,["The Churning Mists"],0],[13763,"Cloud Mushroom",25402,0,60,["The Sea of Clouds"],0],[17570,"Cloud Mythril Ore",21208,60,0,[],1],[12638,"Coneflower",25027,0,60,["The Dravanian Forelands"],0],[12643,"Coriander",25036,0,60,["Coerthas Western Highlands"],0],[12639,"Cow Bitter",25028,0,60,["The Dravanian Hinterlands"],0],[17689,"Crownbrush",25009,0,60,[],1],[15647,"Crystallized Sap",20018,0,60,["The Churning Mists"],1],[12942,"Cuprite",21206,60,0,["The Dravanian Hinterlands"],1],[12640,"Dandelion",25029,0,60,["The Churning Mists"],0],[12903,"Dravanian Paprika",25018,0,60,["Coerthas Western Highlands"],1],[13760,"Eventide Jade",21455,60,0,["Coerthas Western Highlands","The Dravanian Forelands","The Dravanian Hinterlands"],0],[5214,"Fire Moraine",21456,60,0,["The Churning Mists","The Dravanian Forelands","The Dravanian Hinterlands"],1],[13761,"Fossilized Dragon Bone",22201,60,0,["The Churning Mists"],0],[14154,"Frost Cotton Boll",25032,0,60,["Coerthas Western Highlands"],1],[12972,"Furymint",25016,0,60,["Coerthas Western Highlands","The Sea of Clouds"],1],[12641,"Gaelicatnip",25030,0,60,["The Dravanian Hinterlands"],0],[12968,"Granular Clay",27407,0,60,["The Churning Mists","The Dravanian Forelands","The Dravanian Hinterlands"],1],[19910,"Gyr Abanian Alumen",22644,60,0,["The Fringes"],0],[19868,"Gyr Abanian Wheat",25357,0,60,["The Fringes"],0],[12532,"Hardsilver Sand",21219,60,0,["The Churning Mists"],0],[12889,"Heavens Lemon",25305,0,60,["The Sea of Clouds"],1],[12971,"Highland Oregano",25015,0,60,["Coerthas Western Highlands","The Sea of Clouds"],1],[12902,"Honeydew Almonds",25017,0,60,["The Sea of Clouds"],1],[33147,"Humic Soil",22628,0,60,["The Churning Mists","The Dravanian Forelands","The Dravanian Hinterlands"],1],[5117,"Light Kidney Ore",21206,60,0,["The Dravanian Hinterlands"],0],[5218,"Lightning Moraine",21461,60,0,["Coerthas Western Highlands","The Sea of Clouds"],1],[16725,"Luminium Ore",21227,60,0,["Azys Lla"],1],[14148,"Lumythrite Ore",21221,60,0,["The Churning Mists"],1],[14955,"Lumythrite Sand",21218,60,0,["The Churning Mists"],0],[15646,"Meteorite",21203,60,0,["The Sea of Clouds"],1],[12898,"Morel",25408,0,60,["The Dravanian Hinterlands"],1],[16723,"Noble Sage",25002,0,60,["The Dravanian Forelands"],1],[14957,"Old-growth Camphorwood Log",22414,0,60,["The Churning Mists"],1],[12969,"Peat Moss",27401,0,60,["The Churning Mists","The Dravanian Forelands","The Dravanian Hinterlands"],1],[13762,"Periwinkle",25022,0,60,["The Churning Mists","The Dravanian Forelands","The Dravanian Hinterlands"],0],[33148,"Pot Marjoram",25010,0,60,["Coerthas Western Highlands","The Sea of Clouds"],1],[5220,"Radiant Fire Moraine",21456,60,0,["The Churning Mists","The Dravanian Forelands","The Dravanian Hinterlands"],1],[5224,"Radiant Lightning Moraine",21461,60,0,["Coerthas Western Highlands","The Sea of Clouds"],1],[12560,"Raw Carnelian",21471,60,0,["The Dravanian Forelands"],0],[12558,"Raw Chrysolite",21473,60,0,["The Dravanian Hinterlands"],0],[12557,"Raw Citrine",21474,60,0,["Coerthas Western Highlands"],0],[12556,"Raw Opal",21477,60,0,["The Dravanian Forelands"],0],[19968,"Raw Triphane",21474,60,0,["The Fringes"],1],[12945,"Red Alumen",22656,60,0,["Azys Lla"],1],[5159,"Red Quartz",21456,60,0,["The Sea of Clouds"],1],[13752,"Royal Mistletoe",25001,0,60,[],0],[12642,"Rue",25031,0,60,["Coerthas Western Highlands"],0],[12887,"Sesame Seeds",25033,0,60,["The Sea of Clouds"],0],[12634,"Seventh Heaven",22627,0,60,["The Churning Mists"],1],[28775,"Skybuilders' Camphorwood Log",22405,0,60,["The Churning Mists"],0],[28777,"Skybuilders' Hardsilver Ore",21223,60,0,["The Dravanian Hinterlands"],0],[14151,"Smithsonite Ore",21473,60,0,["The Sea of Clouds"],1],[12904,"Snurbleberry",25306,0,60,["The Dravanian Hinterlands"],1],[13750,"Sphalerite",21223,60,0,[],1],[16721,"Star Cotton Boll",25032,0,60,["Azys Lla"],1],[17571,"Stormcloud Cotton Boll",21652,0,60,[],1],[12540,"Sun Mica",21227,60,0,["The Sea of Clouds"],1],[5392,"Teak Log",22403,0,60,["The Dravanian Hinterlands"],1],[13759,"Tektite",20808,60,0,["The Churning Mists"],0],[16724,"Tungstite",21209,60,0,["Coerthas Western Highlands"],1],[4833,"Vanilla Beans",25014,0,60,["Coerthas Western Highlands"],1],[5163,"Violet Quartz",21461,60,0,["Coerthas Western Highlands"],1],[33149,"Water Mint",25036,0,60,["Coerthas Western Highlands","The Sea of Clouds"],1],[12587,"Wattle Bark",23001,0,60,["Azys Lla"],1],[14956,"Whitefrost Cotton Boll",21652,0,60,["Coerthas Western Highlands"],0],[33150,"Wild Sage",25034,0,60,["Coerthas Western Highlands","The Sea of Clouds"],1],[13764,"Wind Widow",22619,0,60,["The Sea of Clouds"],0],[5127,"Wyrm Obsidian",21469,60,0,["The Dravanian Hinterlands"],0],[16726,"Zeolite Ore",21210,60,0,["The Dravanian Hinterlands"],1],[19879,"Ama Nori",25224,0,65,["The Ruby Sea"],0],[19860,"Bamboo Shoot",25229,0,65,["Yanxia"],1],[19936,"Beech Branch",22417,0,65,["The Fringes"],0],[19930,"Beech Log",22412,0,65,["The Fringes"],0],[19850,"Buckwheat Kernels",25356,0,65,["The Peaks"],0],[19872,"Crescent Spring Water",22614,65,0,["Yanxia"],0],[19864,"Cumin Seeds",25354,0,65,["The Ruby Sea"],0],[20006,"Diatomite",22634,65,0,["The Ruby Sea"],0],[19953,"Doman Iron Ore",21202,65,0,["Yanxia"],0],[19881,"Gem Algae",25225,0,65,["The Ruby Sea"],0],[19859,"Green Leek",25035,0,65,["The Peaks"],0],[19871,"Gyr Abanian Mineral Water",22614,65,0,["The Fringes"],0],[19917,"Holy Basil",25010,0,65,["The Fringes"],0],[19951,"Koppranickel Ore",21209,65,0,["The Ruby Sea"],0],[19950,"Koppranickel Sand",21006,65,0,["The Peaks"],0],[19853,"Kudzu Root",25005,0,65,["The Fringes"],0],[19982,"Kudzu Vine",21672,0,65,["The Fringes"],0],[19931,"Larch Log",22403,0,65,["The Ruby Sea"],0],[19851,"Loquat",25317,0,65,["The Fringes"],0],[19861,"Mountain Popoto",25227,0,65,["The Peaks"],0],[5389,"Pine Log",22414,0,65,["Yanxia"],0],[19908,"Pine Resin",22638,0,65,["Yanxia"],0],[19969,"Raw Kyanite",21472,65,0,["The Fringes"],0],[19970,"Raw Star Spinel",21475,65,0,["The Ruby Sea"],1],[19979,"Ruby Cotton Boll",21652,0,65,["The Ruby Sea"],0],[19863,"Shiitake Mushroom",25401,0,65,["The Ruby Sea"],0],[28782,"Skybuilders' Nightsteel Ore",21203,65,0,["The Ruby Sea"],0],[28787,"Skybuilders' Ruby Sea Water",22678,65,0,["The Ruby Sea"],0],[28781,"Skybuilders' Urunday Log",22420,0,65,["The Peaks"],0],[20007,"Slate",21455,65,0,["The Peaks"],0],[19862,"Soybeans",25228,0,65,["The Ruby Sea"],0],[5232,"Stiperstone",22615,65,0,["The Peaks"],0],[19856,"Sugar Beet",25223,0,65,["The Peaks"],0],[19907,"Ala Mhigan Salt Crystal",22617,70,0,["The Lochs"],1],[20011,"Almandine",21471,70,0,["The Lochs"],1],[19912,"Alyssum",22627,0,70,["The Peaks"],0],[21086,"Azim Cotton Boll",25037,0,70,["The Azim Steppe"],1],[24255,"Azim Spring Water",22678,70,0,["The Azim Steppe"],1],[22419,"Black Willow Log",22402,0,70,["The Fringes"],1],[19914,"Chickweed",25008,0,70,["The Azim Steppe"],0],[19959,"Chromite Ore",21205,70,0,["The Peaks"],1],[27954,"Coarse Saltpeter",22615,70,0,["Amh Araeng"],0],[33151,"Countess Tea Leaves",25015,0,70,["Yanxia"],1],[33152,"Dacite",21458,70,0,["Yanxia"],1],[19855,"Daikon Radish",25215,0,70,["Yanxia"],0],[19854,"Doman Eggplant",25205,0,70,["Yanxia"],0],[19955,"Doman Iron Sand",21204,70,0,["The Azim Steppe"],0],[20012,"Doman Yellow",27407,0,70,["The Azim Steppe"],1],[19954,"Durium Ore",21221,70,0,["Yanxia"],0],[19952,"Durium Sand",21218,70,0,["The Azim Steppe"],0],[24241,"Evergleam Ore",21223,70,0,["The Lochs"],1],[19867,"Fennel",25034,0,70,["The Azim Steppe"],0],[19858,"Gyr Abanian Carrot",25207,0,70,["The Peaks"],0],[24240,"Gyr Abanian Ore",21216,70,0,["The Fringes"],1],[21085,"Gyr Abanian Spring Water",22614,70,0,["The Peaks"],1],[19918,"Hallowed Basil",25010,0,70,["The Peaks"],1],[23180,"Hardened Veteran Tree Sap",22638,0,70,["The Fringes"],1],[23179,"Hawk's Eye",21228,70,0,["The Ruby Sea"],1],[22420,"Hingan Flax",21673,0,70,["The Peaks"],1],[19857,"Jhammel Ginger",25012,0,70,["The Lochs"],1],[19865,"Lotus Root",25226,0,70,["Yanxia"],1],[19957,"Molybdenum Ore",21227,70,0,["The Lochs"],0],[19913,"Nagxian Cudweed",25028,0,70,["Yanxia"],0],[27827,"Night Pepper",25007,0,70,["Amh Araeng"],0],[22417,"Nightsteel Ore",21203,70,0,["The Ruby Sea"],1],[19915,"Nipplewort",25030,0,70,["The Azim Steppe"],0],[19852,"Othardian Plum",25311,0,70,["The Azim Steppe"],1],[19958,"Palladium Ore",21217,70,0,["Yanxia"],1],[19956,"Palladium Sand",21214,70,0,["The Azim Steppe"],0],[20010,"Perlite",21463,70,0,["Yanxia"],1],[19869,"Persimmon",25321,0,70,["The Fringes"],0],[19870,"Persimmon Leaf",25010,0,70,["The Fringes"],0],[19932,"Persimmon Log",22414,0,70,["The Fringes"],0],[19971,"Raw Azurite",21472,70,0,["The Azim Steppe"],1],[27726,"Raw Hematite",21476,70,0,["Kholusia"],1],[19972,"Raw Imperial Jade",21252,70,0,["Yanxia"],1],[19973,"Raw Rhodonite",21471,70,0,["The Peaks"],1],[19991,"Rhea",21651,0,70,["The Azim Steppe"],1],[33153,"Rhodolite",21474,70,0,["The Lochs"],1],[19880,"Ruby Tide Kelp",25217,0,70,["The Ruby Sea"],0],[20009,"Schorl",21476,70,0,["The Azim Steppe"],1],[22418,"Silvergrace Ore",21213,70,0,["The Azim Steppe"],1],[28783,"Skybuilders' Adder",22620,0,70,["The Azim Steppe"],0],[28786,"Skybuilders' Ala Mhigan Rock Salt",22617,70,0,["The Lochs"],0],[28909,"Skybuilders' Cocoon",21661,0,70,["Yanxia"],0],[28788,"Skybuilders' Durium Sand",21218,70,0,["The Azim Steppe"],0],[28785,"Skybuilders' Horsetail",26592,0,70,["Yanxia"],0],[28784,"Skybuilders' Molybdenum Ore",21227,70,0,["The Lochs"],0],[28789,"Skybuilders' Vine",21672,0,70,["The Azim Steppe"],0],[19866,"Sun Cabbage",25208,0,70,["The Azim Steppe"],0],[19937,"Torreya Branch",22416,0,70,["The Lochs"],1],[19934,"Torreya Log",22405,0,70,["The Lochs"],1],[19989,"Twincoon",21661,0,70,["The Peaks"],0],[24242,"Urunday Log",22420,0,70,["The Peaks"],1],[19916,"Windtea Leaves",25022,0,70,["Yanxia"],1],[24243,"Yanxian Cotton Boll",21652,0,70,["Yanxia"],1],[19911,"Yanxian Parsley",25016,0,70,["Yanxia"],0],[23220,"Yanxian Soil",21466,70,0,["The Azim Steppe","The Lochs","Yanxia"],1],[23221,"Yanxian Verbena",25009,0,70,["The Azim Steppe","The Lochs","Yanxia"],1],[27817,"Yellow Alumen",22657,70,0,["Amh Araeng"],0],[19933,"Zelkova Log",22409,0,70,["The Lochs"],0],[27825,"Blood Tomato",25209,0,75,["Il Mheg"],0],[27698,"Bluespirit Ore",21228,75,0,["Lakeland"],0],[27747,"Bright Flax",21651,0,75,["Lakeland"],0],[27833,"Broad Beans",25353,0,75,["Il Mheg"],1],[27829,"Creamtop Mushroom",25402,0,75,["The Rak'tika Greatwood"],0],[27823,"Curly Parsley",25211,0,75,["Il Mheg"],0],[27820,"Frantoio",25307,0,75,["Lakeland"],0],[27824,"Garden Beet",25223,0,75,["Il Mheg"],0],[27834,"Gianthive Chip",22611,0,75,["The Rak'tika Greatwood"],0],[27801,"Hard Mudstone",21455,75,0,["Kholusia"],0],[27968,"Highland Spring Water",22678,75,0,["Il Mheg"],0],[27750,"Iridescent Cocoon",21661,0,75,["Il Mheg"],0],[27699,"Manasilver Sand",21219,75,0,["The Rak'tika Greatwood"],0],[27684,"Miracle Apple Log",22404,0,75,["Il Mheg"],0],[27836,"Peppermint",25016,0,75,["Lakeland"],1],[27831,"Pixie Apple",25308,0,75,["Il Mheg"],0],[27753,"Pixie Floss Boll",21652,0,75,["The Rak'tika Greatwood"],0],[27818,"Purple Carrot",25230,0,75,["Lakeland"],0],[27727,"Raw Diaspore",21473,75,0,["Il Mheg"],1],[27728,"Raw Lazurite",21472,75,0,["The Rak'tika Greatwood"],1],[27826,"Royal Grapes",24058,0,75,["The Rak'tika Greatwood"],0],[28793,"Skybuilders' Cotton Boll",25032,0,75,["Lakeland"],0],[28797,"Skybuilders' Highland Spring Water",22678,75,0,["Il Mheg"],0],[28792,"Skybuilders' Truegold Ore",21212,75,0,["Il Mheg"],0],[27697,"Truegold Ore",21212,75,0,["Il Mheg"],0],[27696,"Truegold Sand",21214,75,0,["Kholusia"],0],[27832,"Upland Wheat",25357,0,75,["Kholusia"],0],[27685,"White Ash Log",22406,0,75,["The Rak'tika Greatwood"],0],[27816,"White Oak Branch",22416,0,75,["Kholusia"],0],[27683,"White Oak Log",22407,0,75,["Kholusia"],0],[27821,"Amber Cloves",25023,0,80,["Amh Araeng"],0],[29976,"Ashen Alumen",22604,80,0,["Amh Araeng"],1],[28717,"Beryllium Ore",21455,80,0,["Il Mheg"],1],[27810,"Bog Sage",25009,0,80,["Lakeland"],1],[27830,"Bomba Rice",25358,0,80,["Kholusia"],0],[30486,"Brashgold Ore",21227,80,0,["Lakeland"],1],[27837,"Coffee Beans",25919,0,80,["Kholusia"],0],[27703,"Dimythrite Ore",21208,80,0,["Lakeland"],0],[27702,"Dimythrite Sand",22650,80,0,["Amh Araeng"],0],[32951,"Dolomite",21225,80,0,["The Rak'tika Greatwood"],1],[29974,"Duskblooms",25022,0,80,["Amh Araeng"],1],[27759,"Dwarven Cotton Boll",25032,0,80,["Kholusia"],0],[27761,"Ethereal Cocoon",21661,0,80,["Lakeland"],1],[27776,"Extra Effervescent Water",22678,80,0,["The Rak'tika Greatwood"],0],[27780,"Fernleaf Lavender",25002,0,80,["The Rak'tika Greatwood"],0],[29968,"Fireheart Cobalt",21227,80,0,["Lakeland"],1],[27805,"Gale Rock",21473,80,0,["The Rak'tika Greatwood"],1],[27819,"Harcot",25317,0,80,["Lakeland"],0],[32955,"Hard Water",22689,80,0,["Kholusia"],1],[29978,"Imperial Fern",25038,0,80,["Kholusia"],1],[27835,"Lemonette",25305,0,80,["Kholusia"],1],[30592,"Levin Mint",25039,0,80,["Kholusia","Lakeland","The Rak'tika Greatwood"],1],[27785,"Light Gerbera",25008,0,80,["Lakeland"],0],[27687,"Lignum Vitae Log",22402,0,80,["Lakeland"],0],[27783,"Lime Basil",25010,0,80,["Lakeland"],0],[29972,"Merbau Log",22423,0,80,["Il Mheg"],1],[27828,"Mist Spinach",25206,0,80,["The Rak'tika Greatwood"],1],[27705,"Prismstone",21232,80,0,["Il Mheg"],1],[29970,"Purpure Shell Chip",21469,80,0,["The Tempest"],1],[32953,"Raindrop Cotton Boll",25040,0,80,["The Rak'tika Greatwood"],1],[27731,"Raw Onyx",21231,80,0,["The Tempest"],1],[27730,"Raw Petalite",21477,80,0,["Lakeland"],1],[27729,"Raw Triplite",21471,80,0,["Amh Araeng"],1],[27822,"Russet Popoto",25204,0,80,["Amh Araeng"],1],[27688,"Sandalwood Log",22401,0,80,["The Rak'tika Greatwood"],1],[28716,"Sandalwood Sap",22638,0,80,["The Rak'tika Greatwood"],1],[27686,"Sandteak Log",22403,0,80,["Amh Araeng"],0],[27807,"Shade Quartz",21462,80,0,["Kholusia"],1],[32950,"Silver Beech Log",22412,0,80,["Amh Araeng"],1],[28794,"Skybuilders' Dawn Lizard",22684,0,80,["Amh Araeng"],0],[28791,"Skybuilders' Reef Rock",21203,80,0,["The Tempest"],0],[28798,"Skybuilders' Resin",22638,0,80,["The Rak'tika Greatwood"],0],[28910,"Skybuilders' Sea Salt",22617,80,0,["The Tempest"],0],[28796,"Skybuilders' Truegold Sand",21214,80,0,["Kholusia"],0],[28795,"Skybuilders' Wheat",21653,0,80,["Amh Araeng"],0],[28790,"Skybuilders' White Ash Log",22406,0,80,["The Rak'tika Greatwood"],0],[27806,"Solarite",21467,80,0,["Lakeland"],1],[32952,"Solstice Stone",21232,80,0,["Il Mheg"],1],[27779,"Sweet Alyssum",22627,0,80,["The Rak'tika Greatwood"],0],[27809,"Sweet Marjoram",25015,0,80,["The Rak'tika Greatwood"],1],[30485,"Tender Dill",25036,0,80,["Kholusia"],1],[30591,"Thunder Rock",21482,80,0,["Kholusia","Lakeland","The Rak'tika Greatwood"],1],[27784,"Tiger Lily",25022,0,80,["Lakeland"],0],[27701,"Titancopper Ore",21202,80,0,["Lakeland"],0],[27700,"Titancopper Sand",21006,80,0,["Amh Araeng"],0],[27704,"Tungsten Ore",21203,80,0,["The Tempest"],1],[27782,"Underground Spring Water",22678,80,0,["Lakeland"],0],[27803,"Volcanic Tuff",22615,80,0,["Kholusia"],0],[32954,"Wattle Petribark",22418,0,80,["Lakeland"],1],[27808,"White Clay",22610,0,80,["Kholusia"],1],[36093,"Beet",25231,0,85,["Garlemald"],0],[36164,"Bismuth Ore",21217,85,0,["Mare Lamentorum"],0],[36090,"Carrot of Happiness",25207,0,85,["Mare Lamentorum"],0],[36180,"Chloroschist",21252,85,0,["Labyrinthos"],0],[36087,"Coconut",25323,0,85,["Thavnair"],0],[36091,"Cucumber",25212,0,85,["Garlemald"],0],[36202,"Dark Hemp",21673,0,85,["Labyrinthos"],0],[36083,"Dark Rye",25359,0,85,["Labyrinthos"],0],[36241,"Eblan Alumen",22616,85,0,["Garlemald"],0],[36092,"Eblan Lentils",25355,0,85,["Garlemald"],0],[36163,"High Durium Ore",21221,85,0,["Thavnair"],0],[36162,"High Durium Sand",21242,85,0,["Labyrinthos"],0],[36190,"Horse Chestnut Log",22401,0,85,["Labyrinthos"],0],[36088,"Iceberg Lettuce",25219,0,85,["Labyrinthos"],0],[36191,"Palm Log",22410,0,85,["Thavnair"],0],[36086,"Palm Syrup",22642,0,85,["Thavnair"],0],[36175,"Pewter Ore",21211,85,0,["Thavnair"],0],[36176,"Phrygian Gold Ore",21206,85,0,["Garlemald"],0],[36174,"Raw Ametrine",21475,85,0,["Labyrinthos"],0],[36192,"Red Pine Log",22403,0,85,["Garlemald"],0],[36084,"Sharlayan Rock Salt",22688,85,0,["Labyrinthos"],0],[36204,"Snow Flax",21651,0,85,["Garlemald"],0],[36098,"Thavnairian Paprika",25018,0,85,["Thavnair"],0],[36085,"Thavnairian Perilla Leaf",25036,0,85,["Thavnair"],0],[36206,"AR-Caean Cotton Boll",25032,0,90,["Ultima Thule"],0],[36097,"Alien Onion",25203,0,90,["Ultima Thule"],0],[36263,"Ambrosial Water",22693,90,0,["Elpis"],0],[36181,"Annite",21226,90,0,["Elpis"],0],[37822,"Ash Diatomite",22634,90,0,["Labyrinthos"],1],[37821,"Bayberry",25015,0,90,["Labyrinthos"],1],[36166,"Chondrite",21243,90,0,["Ultima Thule"],0],[39705,"Dark Cherry Log",22408,0,90,["Labyrinthos"],1],[36217,"Double-edged Herb",25201,0,90,["Ultima Thule"],1],[38937,"Earthen Quartz",21458,90,0,["Mare Lamentorum"],1],[36095,"Elder Nutmeg Seeds",25021,0,90,["Elpis"],0],[39709,"Field Mustard",22696,0,90,["Garlemald"],1],[36089,"Giant Popoto",25221,0,90,["Elpis"],0],[36207,"Golden Cocoon",21682,0,90,["Thavnair"],1],[37819,"Haritaki",25017,0,90,["Thavnair"],1],[37820,"Ilmenite",21205,90,0,["Mare Lamentorum"],1],[36194,"Integral Log",22413,0,90,["Ultima Thule"],0],[36193,"Ironwood Log",22411,0,90,["Elpis"],0],[39710,"Lovingbloom",25413,0,90,["Mare Lamentorum"],1],[36167,"Lunar Adamantite Ore",21224,90,0,["Mare Lamentorum"],1],[39708,"Maghemite",22656,90,0,["Thavnair"],1],[36165,"Manganese Ore",21203,90,0,["Elpis"],0],[36195,"Mempisang Log",22405,0,90,["Elpis"],1],[38933,"Mornveil Tree Bark",22418,0,90,["Labyrinthos"],1],[37818,"Paldao Log",22414,0,90,["Elpis"],1],[36214,"Potent Spice",25024,0,90,["Elpis","Thavnair","Ultima Thule"],1],[36177,"Raw Blue Zircon",21472,90,0,["Elpis"],0],[37279,"Raw Eblan Danburite",21477,90,0,["Garlemald"],1],[37817,"Raw Rutilated Quartz",21474,90,0,["Garlemald"],1],[39707,"Raw Spodumene",21475,90,0,["Elpis"],1],[36178,"Raw Star Quartz",21477,90,0,["Ultima Thule"],0],[38934,"Raw Zoisite",21472,90,0,["Garlemald"],1],[36179,"Rhodium Sand",21244,90,0,["Elpis"],1],[36216,"Rime Dolomite",21225,90,0,["Garlemald"],1],[36205,"Scarlet Moko Grass",21681,0,90,["Elpis"],0],[36094,"Sideritis Leaves",25020,0,90,["Elpis"],0],[39706,"Softsilver Ore",21227,90,0,["Ultima Thule"],1],[38938,"Sophora Roots",25025,0,90,["Labyrinthos"],1],[36215,"Stonehard Water",22678,90,0,["Elpis","Garlemald","Mare Lamentorum"],1],[36096,"Sykon",25318,0,90,["Elpis"],0],[37278,"Thavnairian Corn",25352,0,90,["Thavnair"],1],[44015,"Ceiba Log",22403,0,95,["Kozama'uka"],0],[43994,"Cobalt Tungsten Ore",21203,95,0,["Yak T'el"],0],[44016,"Dark Mahogany Log",22426,0,95,["Yak T'el"],0],[44042,"Eucalyptus",25010,0,95,["Urqopacha"],0],[44014,"Ginseng Log",22405,0,95,["Kozama'uka"],0],[44040,"Kozama'uka Chamomile",25008,0,95,["Kozama'uka"],0],[44002,"Lar Ore",21222,95,0,["Urqopacha"],0],[43992,"Mountain Chromite Ore",21205,95,0,["Urqopacha"],0],[44025,"Mountain Flax",25033,0,95,["Urqopacha"],0],[43982,"Mountain Rock Salt",22617,95,0,["Urqopacha"],0],[44003,"Raw Ihuykanite",21252,95,0,["Kozama'uka"],0],[43979,"Royal Maple Sap",22642,0,95,["Kozama'uka"],0],[43993,"Ruthenium Ore",21213,95,0,["Shaaloani"],0],[43980,"Shaaloani Oilseeds",25007,0,95,["Shaaloani"],0],[44024,"Snow Cotton",21655,0,95,["Urqopacha"],0],[43991,"Sweet Kukuru Bean",25314,0,95,["Yak T'el"],0],[43989,"Turali Aloe",25213,0,95,["Urqopacha"],0],[43981,"Turali Corn",25352,0,95,["Yak T'el"],0],[43988,"Turali Pineapple",25303,0,95,["Kozama'uka"],0],[43978,"Ut'ohmu Tomato",25209,0,95,["Yak T'el"],0],[43990,"Wild Ja Tiika Bananas",25333,0,95,["Yak T'el"],0],[44052,"Acacia Bark",22418,0,100,["Shaaloani"],0],[44017,"Acacia Log",22404,0,100,["Shaaloani"],0],[44845,"Alexandrian Ore",21491,100,0,["Living Memory"],1],[43984,"Bell Pepper",25044,0,100,["Shaaloani"],0],[44138,"Blackseed Cotton Boll",25032,0,100,["Living Memory"],1],[43983,"Broccoli",25237,0,100,["Living Memory"],0],[46248,"Calamus Root",22707,0,100,["Living Memory"],1],[49210,"Carnauba Leaf",22709,0,100,["Kozama'uka"],1],[44018,"Claro Walnut Log",22425,0,100,["Heritage Found"],0],[45972,"Cochineal Pigment",25011,0,100,["Heritage Found"],1],[45968,"Cordia Log",22414,0,100,["Yak T'el"],1],[46243,"Cordia Sap",22687,0,100,["Yak T'el"],1],[49208,"Dense Aluminum Ore",21206,100,0,["Heritage Found"],1],[46244,"Desert Lapis Ore",21472,100,0,["Heritage Found"],1],[44136,"Fine Silver Ore",21223,100,0,["Shaaloani"],1],[45973,"Fulgurite",21492,100,0,["Heritage Found"],1],[49207,"Fulgurpine Log",22427,0,100,["Living Memory"],1],[44135,"Harmonite Ore",21221,100,0,["Living Memory"],1],[44137,"Ipe Log",22415,0,100,["Kozama'uka"],1],[46247,"Levin Quartz",21461,100,0,["Living Memory"],1],[44028,"Levinsilk",21687,0,100,["Heritage Found"],0],[44007,"Magnesia Powder",21204,100,0,["Shaaloani"],0],[43987,"Mesquite Beans",25360,0,100,["Shaaloani"],0],[44140,"Nopaliflower",22697,0,100,["Shaaloani"],1],[45969,"Octahedrite",21203,100,0,["Yak T'el"],1],[44844,"Optical Fibergrass",22699,0,100,["Living Memory"],1],[44043,"Pearl Grass",25015,0,100,["Yak T'el"],0],[43996,"Ra'Kaznar Ore",21231,100,0,["Heritage Found"],0],[44006,"Raw Black Star",21476,100,0,["Heritage Found"],0],[44004,"Raw Pink Beryl",21475,100,0,["Yak T'el"],0],[45970,"Raw Rhodochrosite",21471,100,0,["Kozama'uka"],1],[49209,"Rose Garnet Ore",21475,100,0,["Shaaloani"],1],[44026,"Sarcenet",21688,0,100,["Yak T'el"],0],[45971,"Shaaloani Coffee",27501,0,100,["Shaaloani"],1],[43995,"Titanium Gold Ore",21212,100,0,["Shaaloani"],0],[44139,"Turali Alumen",22673,100,0,["Urqopacha"],1],[49211,"Urqopacha Flax",25033,0,100,["Urqopacha"],1],[44005,"White Gold Ore",21217,100,0,["Heritage Found"],0],[43986,"White Pepper",25045,0,100,["Yak T'el"],0],[44039,"Wind Parsley",25211,0,100,["Living Memory"],0],[44041,"Windsbalm Bay Leaf",25009,0,100,["Living Memory"],0],[49212,"Windspath Water",22678,100,0,["Living Memory"],1],[44034,"Yak T'el Spring Water",22614,100,0,["Yak T'el"],0],[43985,"Yyasulani Garlic",25006,0,100,["Heritage Found"],0]];
-const API = "https://universalis.app/api/v2";
-const WORLD = "Famfrit";
 const SHARD_RE = /^(Fire|Ice|Wind|Earth|Lightning|Water) (Shard|Crystal|Cluster)$/;
 
-const state = { job: "ALL", sortK: "sales", sortDir: -1, rows: [], loadedAt: 0, tax: null, selected: null };
+const state = { job: "ALL", sortK: "sales", sortDir: -1, rows: [], loadedAt: 0, selected: null };
 const items = ITEMS_RAW
   .filter(r => !r[1].startsWith("Skybuilders'"))
   .map(r => ({ id: r[0], name: r[1], icon: r[2], min: r[3], btn: r[4], zones: r[5], timed: !!r[6] }));
 const byId = new Map(items.map(i => [i.id, i]));
-
-const $ = s => document.querySelector(s);
-const fmt = n => n == null || Number.isNaN(n) ? "–" : Math.round(n).toLocaleString("en-US");
-const store = {
-  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
-};
-function median(a) { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
-function pct(a, p) { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * (s.length - 1)))]; }
-function ageText(ms) { if (!ms) return "never"; const m = (Date.now() - ms) / 60000; if (m < 60) return Math.max(1, Math.round(m)) + "m"; const h = m / 60; if (h < 48) return Math.round(h) + "h"; return Math.round(h / 24) + "d"; }
-function ageClass(ms) { if (!ms) return "old"; const h = (Date.now() - ms) / 3.6e6; return h > 48 ? "old" : h > 12 ? "stale" : ""; }
-function iconUrl(icon) { const f = String(Math.floor(icon / 1000) * 1000).padStart(6, "0"); const n = String(icon).padStart(6, "0"); return `https://v2.xivapi.com/api/asset?path=ui/icon/${f}/${n}.tex&format=png`; }
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-async function getJSON(url, tries = 4) {
-  for (let i = 0; i < tries; i++) {
-    let res;
-    try { res = await fetch(url); } catch (e) { if (i === tries - 1) throw new Error("network"); await sleep(800 * (i + 1)); continue; }
-    if (res.ok) return res.json();
-    if (res.status === 429 || res.status >= 500) { await sleep(1200 * (i + 1)); continue; }
-    throw new Error("HTTP " + res.status);
-  }
-  throw new Error("Universalis kept refusing requests");
-}
-function chunks(a, n) { const out = []; for (let i = 0; i < a.length; i += n) out.push(a.slice(i, i + n)); return out; }
-async function pool(tasks, limit, onDone) { let i = 0; const run = async () => { while (i < tasks.length) { const t = tasks[i++]; await t(); onDone(); await sleep(120); } }; await Promise.all(Array.from({ length: limit }, run)); }
-function multi(json) { return json && json.items ? json.items : json && (json.itemID || json.itemId) ? { [json.itemID ?? json.itemId]: json } : {}; }
 
 function showMsg(text, bad) { const m = $("#msg"); m.className = "notice" + (bad ? " bad" : ""); m.textContent = text; m.hidden = !text; }
 
@@ -291,7 +117,7 @@ async function loadAll(force) {
           r.low = lows.length ? Math.min(...lows) : null;
           const v = (res.nq?.dailySaleVelocity?.world?.quantity || 0) + (res.hq?.dailySaleVelocity?.world?.quantity || 0);
           r.vel = v;
-          const up = (res.worldUploadTimes || []).find(w => w.worldId === 35);
+          const up = (res.worldUploadTimes || []).find(w => w.worldId === WORLD_ID);
           if (up && up.timestamp > r.age) r.age = up.timestamp;
         }
       });
@@ -373,23 +199,6 @@ function render() {
 }
 
 /* ---------- price check drawer ---------- */
-async function getTax() {
-  if (state.tax) return state.tax;
-  try { state.tax = await getJSON(`${API}/tax-rates?world=${WORLD}`); } catch { state.tax = null; }
-  return state.tax;
-}
-function suggestPrice(listings, sales, span) {
-  const lows = listings.map(l => l.pricePerUnit); const low = lows.length ? Math.min(...lows) : null;
-  const prices = sales.map(s => s.pricePerUnit); const med = median(prices); const p25 = pct(prices, 0.25);
-  const enough = prices.length >= 5;
-  if (low == null && med == null) return { price: null, why: "No listings and no recorded sales on Famfrit in 30 days. Check the board in game before listing." };
-  if (low == null) return { price: Math.round(med), why: `Nobody is selling this right now, so list at the ${span} median sale price.` };
-  if (med == null) return { price: Math.max(1, low - 1), why: "No sales recorded in 30 days. This undercuts the lowest listing by 1 gil, but expect it to sit." };
-  if (enough && low < 0.7 * med) return { price: Math.round(med), why: `The lowest listing (${fmt(low)} g) is far below the ${span} median (${fmt(med)} g). It looks like a dump; listing at the median avoids racing it down.` , warn: true };
-  const under = Math.max(1, low - 1);
-  if (enough && under < p25) return { price: Math.round(p25), why: `Undercutting would drop below the bottom quarter of recent sales, so this holds at ${fmt(p25)} g.` };
-  return { price: under, why: `Undercuts the lowest listing (${fmt(low)} g) by 1 gil. The ${span} median sale was ${fmt(med)} g.` };
-}
 function verdictFor({ sug, S7, S30, L, vendor, bestTax }) {
   const units7 = S7.reduce((s, x) => s + x.quantity, 0);
   const netEach = sug.price ? sug.price * (1 - bestTax / 100) : 0;
@@ -507,61 +316,8 @@ async function openItem(id) {
 }
 function closeItem() { $("#drawer").hidden = true; $("#scrim").hidden = true; document.body.classList.remove("panel-open"); const id = state.selected; state.selected = null; render(); document.querySelector(`tr[data-id="${id}"]`)?.focus(); }
 
-/* ---------- any-item lookup ---------- */
-const anyById = new Map(); let ALL = null, ALLP = null;
-function loadIndex() {
-  if (!ALLP) ALLP = fetch("items.json").then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(d => {
-    ALL = d.items.map(r => ({ id: r[0], name: r[1], icon: r[2], cat: d.cats[r[3]] || "", vendor: r[4], ilvl: r[5], lc: r[1].toLowerCase() }));
-    for (const x of ALL) anyById.set(x.id, x);
-    return ALL;
-  }).catch(() => { ALLP = null; return null; });
-  return ALLP;
-}
-function searchAll(q) {
-  q = q.trim().toLowerCase(); if (q.length < 2 || !ALL) return [];
-  const words = q.split(/\s+/); const hits = [];
-  for (const x of ALL) {
-    if (!words.every(w => x.lc.includes(w))) continue;
-    const i = x.lc.indexOf(q);
-    const score = i === 0 ? 0 : i > 0 && /[\s'-]/.test(x.lc[i - 1]) ? 1 : i > 0 ? 2 : 3;
-    hits.push([score, x.name.length, x]);
-  }
-  hits.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  return hits.slice(0, 12).map(h => h[2]);
-}
-const look = $("#look"), lookList = $("#lookList"); let lookHits = [], lookActive = -1;
-function closeLook() { lookList.hidden = true; look.setAttribute("aria-expanded", "false"); look.removeAttribute("aria-activedescendant"); lookActive = -1; }
-function drawLook() {
-  lookList.replaceChildren();
-  if (look.value.trim().length < 2) { closeLook(); return; }
-  if (!ALL) { const li = document.createElement("li"); li.className = "none"; li.textContent = ALLP ? "Loading item list…" : "Couldn't load the item list. Reload the page to try again."; lookList.append(li); }
-  else if (!lookHits.length) { const li = document.createElement("li"); li.className = "none"; li.textContent = "No sellable item matches that name."; lookList.append(li); }
-  lookHits.forEach((x, i) => {
-    const li = document.createElement("li"); li.id = "opt" + i; li.setAttribute("role", "option"); li.setAttribute("aria-selected", i === lookActive);
-    li.innerHTML = `<img loading="lazy" alt="" src="${iconUrl(x.icon)}" onerror="this.remove()"><span class="n"></span><span class="c"></span>`;
-    li.querySelector(".n").textContent = x.name; li.querySelector(".c").textContent = x.cat;
-    li.addEventListener("mousedown", e => { e.preventDefault(); pickLook(i); });
-    lookList.append(li);
-  });
-  lookList.hidden = false; look.setAttribute("aria-expanded", "true");
-  if (lookActive >= 0) look.setAttribute("aria-activedescendant", "opt" + lookActive); else look.removeAttribute("aria-activedescendant");
-}
-function pickLook(i) { const x = lookHits[i]; if (!x) return; look.value = x.name; closeLook(); openItem(x.id); }
-look.addEventListener("focus", () => { loadIndex(); });
-look.addEventListener("input", async () => {
-  const q = look.value; lookActive = -1;
-  if (!ALL) { drawLook(); await loadIndex(); if (look.value !== q) return; }
-  lookHits = searchAll(q); drawLook();
-});
-look.addEventListener("keydown", e => {
-  if (e.key === "ArrowDown" && lookHits.length) { e.preventDefault(); lookActive = (lookActive + 1) % lookHits.length; drawLook(); }
-  else if (e.key === "ArrowUp" && lookHits.length) { e.preventDefault(); lookActive = (lookActive - 1 + lookHits.length) % lookHits.length; drawLook(); }
-  else if (e.key === "Enter" && lookHits.length) { e.preventDefault(); pickLook(lookActive < 0 ? 0 : lookActive); }
-  else if (e.key === "Escape") { e.stopPropagation(); closeLook(); }
-});
-look.addEventListener("blur", () => setTimeout(closeLook, 100));
-
 /* ---------- wiring ---------- */
+attachLookup($("#look"), $("#lookList"), x => openItem(x.id));
 const saved = store.get("ffmb-filters", null);
 if (saved) {
   $("#q").value = saved.q || ""; $("#lvMin").value = saved.lvMin || 30; $("#lvBtn").value = saved.lvBtn || 30;
