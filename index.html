@@ -42,6 +42,7 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; }
 body { background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font-body); }
 .wrap { max-width: 1280px; margin: 0 auto; padding-inline: 20px; padding-block: 20px 48px; display: grid; gap: 16px; }
@@ -124,6 +125,9 @@ td.item .zn { color: var(--muted); font-size: .78rem; }
 
 /* drawer */
 .scrim { position: fixed; inset: 0; background: rgb(0 0 0 / .35); }
+/* Wide screens: the panel sits beside the page, so search and the table stay usable while it is open. */
+@media (min-width: 900px) { .scrim { display: none !important; } }
+@media (min-width: 1150px) { body.panel-open .wrap { padding-right: 540px; } }
 .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100%); background: var(--surface); border-left: 1px solid var(--line); overflow-y: auto; padding-inline: 20px; padding-block: calc(env(safe-area-inset-top, 0px) + 18px) calc(env(safe-area-inset-bottom, 0px) + 28px); display: grid; gap: 18px; align-content: start; }
 .drawer h2 { font-family: var(--font-display); font-size: 1.3rem; margin: 0; text-wrap: balance; }
 .dhead { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
@@ -330,7 +334,7 @@ function render() {
   const val = r => k === "name" ? r.it.name : k === "lv" ? lvKey(r.it, f) : k === "age" ? -(r.age || 0) : r[k];
   list.sort((a, b) => { const x = val(a), y = val(b); if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1; return (typeof x === "string" ? x.localeCompare(y) : x - y) * d; });
 
-  document.querySelectorAll("thead th").forEach(th => {
+  document.querySelectorAll("#tbl thead th").forEach(th => {
     const on = th.dataset.k === k; th.toggleAttribute("aria-sort", on);
     if (on) th.setAttribute("aria-sort", d > 0 ? "ascending" : "descending");
     th.querySelector(".arrow").textContent = on ? (d > 0 ? "▲" : "▼") : "";
@@ -413,7 +417,7 @@ function dailyBars(sales) {
 async function openItem(id) {
   const g = byId.get(id); const it = g || anyById.get(id); if (!it) return;
   state.selected = id; render();
-  const dr = $("#drawer"); $("#scrim").hidden = false; dr.hidden = false;
+  const dr = $("#drawer"); $("#scrim").hidden = false; dr.hidden = false; document.body.classList.add("panel-open");
   dr.innerHTML = `<div class="dhead"><div><h2></h2><div class="sub"></div></div><button class="btn" type="button" id="close">Close</button></div><div class="empty">Loading listings and sales…</div>`;
   dr.querySelector("h2").textContent = it.name;
   dr.querySelector(".sub").textContent = g
@@ -497,10 +501,11 @@ async function openItem(id) {
     draw();
   } catch (e) {
     if (state.selected !== id) return;
-    dr.querySelector(".empty").textContent = "Couldn't load this item from Universalis. Close and try again in a moment.";
+    dr.querySelector(".empty, .dbody")?.remove();
+    const m = document.createElement("div"); m.className = "empty dbody"; m.textContent = "Couldn't load this item from Universalis. Try again in a moment."; dr.append(m);
   }
 }
-function closeItem() { $("#drawer").hidden = true; $("#scrim").hidden = true; const id = state.selected; state.selected = null; render(); document.querySelector(`tr[data-id="${id}"]`)?.focus(); }
+function closeItem() { $("#drawer").hidden = true; $("#scrim").hidden = true; document.body.classList.remove("panel-open"); const id = state.selected; state.selected = null; render(); document.querySelector(`tr[data-id="${id}"]`)?.focus(); }
 
 /* ---------- any-item lookup ---------- */
 const anyById = new Map(); let ALL = null, ALLP = null;
@@ -568,7 +573,7 @@ if (saved) {
 document.querySelectorAll("[data-job]").forEach(b => b.addEventListener("click", () => {
   state.job = b.dataset.job; document.querySelectorAll("[data-job]").forEach(x => x.setAttribute("aria-pressed", x === b)); render();
 }));
-document.querySelectorAll("thead th").forEach(th => th.querySelector("button").addEventListener("click", () => {
+document.querySelectorAll("#tbl thead th").forEach(th => th.querySelector("button").addEventListener("click", () => {
   const k = th.dataset.k; if (state.sortK === k) state.sortDir *= -1; else { state.sortK = k; state.sortDir = (k === "name" || k === "lv") ? 1 : -1; } render();
 }));
 $("#rows").addEventListener("click", e => { const tr = e.target.closest("tr[data-id]"); if (tr) openItem(+tr.dataset.id); });
