@@ -58,6 +58,23 @@ header.top .where { color: var(--muted); font-size: .85rem; letter-spacing: .06e
 .btn.primary { background: var(--gil); border-color: var(--gil); color: var(--surface); font-weight: 600; }
 .btn:disabled { opacity: .55; cursor: progress; }
 
+.lookup { display: grid; gap: 6px; background: var(--surface); border: 1px solid var(--gil); border-radius: 8px; padding: 14px 16px; }
+.lookup .hint { color: var(--muted); font-size: .8rem; }
+.combo { position: relative; }
+.combo input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; font-size: 1rem; }
+.combo ul { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / .18); max-height: 360px; overflow-y: auto; }
+.combo li { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 6px; cursor: pointer; }
+.combo li img { width: 26px; height: 26px; border-radius: 4px; flex: none; }
+.combo li .c { color: var(--muted); font-size: .8rem; margin-left: auto; white-space: nowrap; }
+.combo li[aria-selected="true"], .combo li:hover { background: var(--gil-soft); }
+.combo li.none { color: var(--muted); cursor: default; }
+.combo li.none:hover { background: none; }
+.verdict { display: grid; gap: 4px; border-radius: 8px; padding: 12px 14px; background: var(--sunken); border-left: 3px solid var(--muted); }
+.verdict b { font-size: 1rem; }
+.verdict.good { border-left-color: var(--good); }
+.verdict.warn { border-left-color: var(--warn); }
+.verdict.bad { border-left-color: var(--bad); }
+.verdict span { font-size: .9rem; color: var(--muted); }
 .controls { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
 .field { display: grid; gap: 4px; }
 .field label, .lbl { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
@@ -143,6 +160,15 @@ a { color: var(--focus); }
       <button class="btn primary" id="refresh" type="button">Refresh prices</button>
     </div>
   </header>
+
+  <section class="lookup" aria-label="Price check any item">
+    <label for="look" class="lbl">Price check any item</label>
+    <div class="combo">
+      <input id="look" type="search" placeholder="Type any item: loot, gear, dyes, minions…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="lookList" aria-autocomplete="list">
+      <ul id="lookList" role="listbox" hidden></ul>
+    </div>
+    <span class="hint">Only items that can be sold on the market board show up. Untradable loot won't appear.</span>
+  </section>
 
   <div class="progress" aria-hidden="true"><i id="bar"></i></div>
   <div id="msg" hidden></div>
@@ -348,17 +374,29 @@ async function getTax() {
   try { state.tax = await getJSON(`${API}/tax-rates?world=${WORLD}`); } catch { state.tax = null; }
   return state.tax;
 }
-function suggestPrice(listings, sales) {
+function suggestPrice(listings, sales, span) {
   const lows = listings.map(l => l.pricePerUnit); const low = lows.length ? Math.min(...lows) : null;
   const prices = sales.map(s => s.pricePerUnit); const med = median(prices); const p25 = pct(prices, 0.25);
   const enough = prices.length >= 5;
-  if (low == null && med == null) return { price: null, why: "No listings and no recorded sales on Famfrit. Check the board in game before listing." };
-  if (low == null) return { price: Math.round(med), why: "Nobody is selling this right now, so list at the 7-day median sale price." };
-  if (med == null) return { price: Math.max(1, low - 1), why: "No sales recorded in 7 days. This undercuts the lowest listing by 1 gil, but expect it to sit." };
-  if (enough && low < 0.7 * med) return { price: Math.round(med), why: `The lowest listing (${fmt(low)} g) is far below the 7-day median (${fmt(med)} g). It looks like a dump; listing at the median avoids racing it down.` , warn: true };
+  if (low == null && med == null) return { price: null, why: "No listings and no recorded sales on Famfrit in 30 days. Check the board in game before listing." };
+  if (low == null) return { price: Math.round(med), why: `Nobody is selling this right now, so list at the ${span} median sale price.` };
+  if (med == null) return { price: Math.max(1, low - 1), why: "No sales recorded in 30 days. This undercuts the lowest listing by 1 gil, but expect it to sit." };
+  if (enough && low < 0.7 * med) return { price: Math.round(med), why: `The lowest listing (${fmt(low)} g) is far below the ${span} median (${fmt(med)} g). It looks like a dump; listing at the median avoids racing it down.` , warn: true };
   const under = Math.max(1, low - 1);
   if (enough && under < p25) return { price: Math.round(p25), why: `Undercutting would drop below the bottom quarter of recent sales, so this holds at ${fmt(p25)} g.` };
-  return { price: under, why: `Undercuts the lowest listing (${fmt(low)} g) by 1 gil. The 7-day median sale was ${fmt(med)} g.` };
+  return { price: under, why: `Undercuts the lowest listing (${fmt(low)} g) by 1 gil. The ${span} median sale was ${fmt(med)} g.` };
+}
+function verdictFor({ sug, S7, S30, L, vendor, bestTax }) {
+  const units7 = S7.reduce((s, x) => s + x.quantity, 0);
+  const netEach = sug.price ? sug.price * (1 - bestTax / 100) : 0;
+  const vend = vendor ? ` An NPC vendor pays ${fmt(vendor)} g each.` : "";
+  if (!S30.length) return L.length
+    ? { cls: "bad", head: "Hasn't sold in 30 days", body: `There are ${L.length} listings sitting unsold.${vend} List it only if you're happy to wait.` }
+    : { cls: "bad", head: "No market for this on Famfrit", body: `Nobody has bought or listed it in 30 days.${vend}` };
+  if (vendor && netEach && netEach <= vendor * 1.2) return { cls: "bad", head: "Vendor it", body: `After tax the market pays about ${fmt(netEach)} g each, close to the ${fmt(vendor)} g an NPC pays right away.` };
+  if (S7.length >= 7) return { cls: "good", head: "Worth selling", body: `${fmt(S7.length)} sales and ${fmt(units7)} units sold in the last 7 days, so it moves about ${fmt(units7 / 7)} a day.${vend}` };
+  if (S7.length >= 1) return { cls: "warn", head: "Sells slowly", body: `Only ${S7.length} sale${S7.length > 1 ? "s" : ""} in the last 7 days. Price it right and expect to wait a few days.${vend}` };
+  return { cls: "warn", head: "Rarely sells", body: `Last sold ${ageText(S30[0].timestamp * 1000)} ago, with ${S30.length} sale${S30.length > 1 ? "s" : ""} in 30 days.${vend}` };
 }
 function dailyBars(sales) {
   const days = []; const now = new Date(); now.setHours(0, 0, 0, 0);
@@ -373,39 +411,52 @@ function dailyBars(sales) {
 }
 
 async function openItem(id) {
-  const it = byId.get(id); state.selected = id; render();
+  const g = byId.get(id); const it = g || anyById.get(id); if (!it) return;
+  state.selected = id; render();
   const dr = $("#drawer"); $("#scrim").hidden = false; dr.hidden = false;
   dr.innerHTML = `<div class="dhead"><div><h2></h2><div class="sub"></div></div><button class="btn" type="button" id="close">Close</button></div><div class="empty">Loading listings and sales…</div>`;
   dr.querySelector("h2").textContent = it.name;
-  dr.querySelector(".sub").textContent = [it.min ? `Miner ${it.min}` : "", it.btn ? `Botanist ${it.btn}` : "", it.zones.join(", ")].filter(Boolean).join(" · ");
+  dr.querySelector(".sub").textContent = g
+    ? [g.min ? `Miner ${g.min}` : "", g.btn ? `Botanist ${g.btn}` : "", g.zones.join(", ")].filter(Boolean).join(" · ")
+    : [it.cat, it.ilvl > 1 ? `Item level ${it.ilvl}` : ""].filter(Boolean).join(" · ");
   $("#close").onclick = closeItem; $("#close").focus();
   try {
     const [cur, hist, tax] = await Promise.all([
       getJSON(`${API}/${WORLD}/${id}?listings=40&entries=0`),
-      getJSON(`${API}/history/${WORLD}/${id}?entriesWithin=604800&entriesToReturn=5000`),
-      getTax()
+      getJSON(`${API}/history/${WORLD}/${id}?entriesWithin=2592000&entriesToReturn=5000`),
+      getTax(),
+      loadIndex()
     ]);
     if (state.selected !== id) return;
+    const vendor = anyById.get(id)?.vendor || 0;
+    const bestTax = tax ? Math.min(...Object.values(tax).filter(v => typeof v === "number")) : 5;
     const all = { listings: cur.listings || [], sales: hist.entries || [] };
     const hasHQ = all.listings.some(l => l.hq) || all.sales.some(s => s.hq);
     let q = hasHQ && !all.listings.some(l => !l.hq) && !all.sales.some(s => !s.hq) ? "HQ" : "NQ";
     const draw = () => {
       const L = all.listings.filter(l => (q === "HQ") === !!l.hq).sort((a, b) => a.pricePerUnit - b.pricePerUnit);
-      const S = all.sales.filter(s => (q === "HQ") === !!s.hq).sort((a, b) => b.timestamp - a.timestamp);
-      const sug = suggestPrice(L, S);
-      const day = S.filter(s => s.timestamp >= Date.now() / 1000 - 86400);
+      const S30 = all.sales.filter(s => (q === "HQ") === !!s.hq).sort((a, b) => b.timestamp - a.timestamp);
+      const nowS = Date.now() / 1000;
+      const S = S30.filter(s => s.timestamp >= nowS - 604800);
+      const sug = S.length >= 3 ? suggestPrice(L, S, "7-day") : suggestPrice(L, S30, "30-day");
+      const vd = verdictFor({ sug, S7: S, S30, L, vendor: q === "NQ" ? vendor : 0, bestTax });
+      const day = S.filter(s => s.timestamp >= nowS - 86400);
       const units24 = day.reduce((s, x) => s + x.quantity, 0);
+      const perDay7 = S.reduce((s, x) => s + x.quantity, 0) / 7;
       const ahead = sug.price ? L.filter(l => l.pricePerUnit < sug.price).reduce((s, l) => s + l.quantity, 0) : 0;
       const qty = +store.get("ffmb-qty", 99) || 99;
       const body = document.createElement("div"); body.style.display = "grid"; body.style.gap = "18px";
       body.innerHTML = `
         ${hasHQ ? `<div class="seg" role="group" aria-label="Quality"><button type="button" data-q="NQ" aria-pressed="${q === "NQ"}">NQ</button><button type="button" data-q="HQ" aria-pressed="${q === "HQ"}">HQ</button></div>` : ""}
+        <div class="verdict ${vd.cls}"><b></b><span></span></div>
         <div class="suggest"><span class="lbl">Suggested list price · ${q}</span><span class="price">${sug.price ? fmt(sug.price) + " g" : "–"}</span><span class="why"></span></div>
         <div class="kv">
           <div><div class="lbl">Sales 24h</div><div class="v">${fmt(day.length)}</div></div>
+          <div><div class="lbl">Sales 7 days</div><div class="v">${fmt(S.length)}</div></div>
           <div><div class="lbl">Units 24h</div><div class="v">${fmt(units24)}</div></div>
           <div><div class="lbl">Units listed below you</div><div class="v">${sug.price ? fmt(ahead) : "–"}</div></div>
-          <div><div class="lbl">Days to clear them</div><div class="v">${sug.price && units24 ? (ahead / units24 < 0.1 ? "<0.1" : (ahead / units24).toFixed(1)) : "–"}</div></div>
+          <div><div class="lbl">Days to clear them</div><div class="v">${sug.price && perDay7 ? (ahead / perDay7 < 0.1 ? "<0.1" : (ahead / perDay7).toFixed(1)) : "–"}</div></div>
+          <div><div class="lbl">NPC vendor price</div><div class="v">${vendor && q === "NQ" ? fmt(vendor) + " g" : "–"}</div></div>
           <div><div class="lbl">Listings updated</div><div class="v age ${ageClass(cur.lastUploadTime)}">${ageText(cur.lastUploadTime)} ago</div></div>
         </div>
         <div class="sec"><h3>Units sold per day · last 7 days</h3>${dailyBars(S)}</div>
@@ -416,13 +467,15 @@ async function openItem(id) {
         <div class="sec"><h3>Recent sales · ${q}</h3><div class="tablebox"><table class="mini"><thead><tr><th class="r">Price</th><th class="r">Qty</th><th class="r">When</th></tr></thead><tbody id="sl"></tbody></table></div></div>
         <a href="https://universalis.app/market/${id}" target="_blank" rel="noopener">Open on Universalis</a>`;
       body.querySelector(".why").textContent = sug.why;
+      body.querySelector(".verdict b").textContent = vd.head;
+      body.querySelector(".verdict span").textContent = vd.body;
       if (sug.warn) body.querySelector(".why").style.color = "var(--warn)";
       const lst = body.querySelector("#lst");
       if (!L.length) lst.innerHTML = `<tr><td colspan="3" class="zero">No ${q} listings</td></tr>`;
       for (const l of L.slice(0, 15)) { const tr = document.createElement("tr"); tr.innerHTML = `<td class="r num gil">${fmt(l.pricePerUnit)}</td><td class="r num">${fmt(l.quantity)}</td><td></td>`; tr.lastChild.textContent = l.retainerName || ""; lst.append(tr); }
       const sl = body.querySelector("#sl");
-      if (!S.length) sl.innerHTML = `<tr><td colspan="3" class="zero">No ${q} sales in 7 days</td></tr>`;
-      for (const s of S.slice(0, 15)) { const tr = document.createElement("tr"); tr.innerHTML = `<td class="r num gil">${fmt(s.pricePerUnit)}</td><td class="r num">${fmt(s.quantity)}</td><td class="r num">${ageText(s.timestamp * 1000)} ago</td>`; sl.append(tr); }
+      if (!S30.length) sl.innerHTML = `<tr><td colspan="3" class="zero">No ${q} sales in 30 days</td></tr>`;
+      for (const s of S30.slice(0, 15)) { const tr = document.createElement("tr"); tr.innerHTML = `<td class="r num gil">${fmt(s.pricePerUnit)}</td><td class="r num">${fmt(s.quantity)}</td><td class="r num">${ageText(s.timestamp * 1000)} ago</td>`; sl.append(tr); }
       const drawTax = () => {
         const g = body.querySelector("#taxgrid"); g.replaceChildren();
         const n = +body.querySelector("#qty").value || 0; store.set("ffmb-qty", n);
@@ -448,6 +501,60 @@ async function openItem(id) {
   }
 }
 function closeItem() { $("#drawer").hidden = true; $("#scrim").hidden = true; const id = state.selected; state.selected = null; render(); document.querySelector(`tr[data-id="${id}"]`)?.focus(); }
+
+/* ---------- any-item lookup ---------- */
+const anyById = new Map(); let ALL = null, ALLP = null;
+function loadIndex() {
+  if (!ALLP) ALLP = fetch("items.json").then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(d => {
+    ALL = d.items.map(r => ({ id: r[0], name: r[1], icon: r[2], cat: d.cats[r[3]] || "", vendor: r[4], ilvl: r[5], lc: r[1].toLowerCase() }));
+    for (const x of ALL) anyById.set(x.id, x);
+    return ALL;
+  }).catch(() => { ALLP = null; return null; });
+  return ALLP;
+}
+function searchAll(q) {
+  q = q.trim().toLowerCase(); if (q.length < 2 || !ALL) return [];
+  const words = q.split(/\s+/); const hits = [];
+  for (const x of ALL) {
+    if (!words.every(w => x.lc.includes(w))) continue;
+    const i = x.lc.indexOf(q);
+    const score = i === 0 ? 0 : i > 0 && /[\s'-]/.test(x.lc[i - 1]) ? 1 : i > 0 ? 2 : 3;
+    hits.push([score, x.name.length, x]);
+  }
+  hits.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  return hits.slice(0, 12).map(h => h[2]);
+}
+const look = $("#look"), lookList = $("#lookList"); let lookHits = [], lookActive = -1;
+function closeLook() { lookList.hidden = true; look.setAttribute("aria-expanded", "false"); look.removeAttribute("aria-activedescendant"); lookActive = -1; }
+function drawLook() {
+  lookList.replaceChildren();
+  if (look.value.trim().length < 2) { closeLook(); return; }
+  if (!ALL) { const li = document.createElement("li"); li.className = "none"; li.textContent = ALLP ? "Loading item list…" : "Couldn't load the item list. Reload the page to try again."; lookList.append(li); }
+  else if (!lookHits.length) { const li = document.createElement("li"); li.className = "none"; li.textContent = "No sellable item matches that name."; lookList.append(li); }
+  lookHits.forEach((x, i) => {
+    const li = document.createElement("li"); li.id = "opt" + i; li.setAttribute("role", "option"); li.setAttribute("aria-selected", i === lookActive);
+    li.innerHTML = `<img loading="lazy" alt="" src="${iconUrl(x.icon)}" onerror="this.remove()"><span class="n"></span><span class="c"></span>`;
+    li.querySelector(".n").textContent = x.name; li.querySelector(".c").textContent = x.cat;
+    li.addEventListener("mousedown", e => { e.preventDefault(); pickLook(i); });
+    lookList.append(li);
+  });
+  lookList.hidden = false; look.setAttribute("aria-expanded", "true");
+  if (lookActive >= 0) look.setAttribute("aria-activedescendant", "opt" + lookActive); else look.removeAttribute("aria-activedescendant");
+}
+function pickLook(i) { const x = lookHits[i]; if (!x) return; look.value = x.name; closeLook(); openItem(x.id); }
+look.addEventListener("focus", () => { loadIndex(); });
+look.addEventListener("input", async () => {
+  const q = look.value; lookActive = -1;
+  if (!ALL) { drawLook(); await loadIndex(); if (look.value !== q) return; }
+  lookHits = searchAll(q); drawLook();
+});
+look.addEventListener("keydown", e => {
+  if (e.key === "ArrowDown" && lookHits.length) { e.preventDefault(); lookActive = (lookActive + 1) % lookHits.length; drawLook(); }
+  else if (e.key === "ArrowUp" && lookHits.length) { e.preventDefault(); lookActive = (lookActive - 1 + lookHits.length) % lookHits.length; drawLook(); }
+  else if (e.key === "Enter" && lookHits.length) { e.preventDefault(); pickLook(lookActive < 0 ? 0 : lookActive); }
+  else if (e.key === "Escape") { e.stopPropagation(); closeLook(); }
+});
+look.addEventListener("blur", () => setTimeout(closeLook, 100));
 
 /* ---------- wiring ---------- */
 const saved = store.get("ffmb-filters", null);
