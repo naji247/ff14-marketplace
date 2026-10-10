@@ -1,0 +1,327 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>My Famfrit Listings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head><body>
+<div class="wrap">
+  <nav class="tabs" aria-label="Pages">
+    <a href="./">Gathering market</a>
+    <a href="listings.html" aria-current="page">My listings</a>
+  </nav>
+  <header class="top">
+    <div>
+      <div class="where">Primal · Famfrit · Your retainers</div>
+      <h1>My Listings</h1>
+    </div>
+    <div class="status">
+      <span id="updated">Not checked yet</span>
+      <button class="btn primary" id="check" type="button">Check my listings</button>
+    </div>
+  </header>
+
+  <section class="setup" aria-label="Setup">
+    <div class="card">
+      <h2>Your retainers</h2>
+      <form class="row" id="retForm">
+        <input id="retName" type="text" placeholder="Retainer name, exactly as in game" autocomplete="off" maxlength="40">
+        <button class="btn" type="submit">Add</button>
+      </form>
+      <div class="chips" id="retChips" data-empty="No retainers added yet."></div>
+      <p>Retainer names are unique on Famfrit, so listings are matched by name. Find them at any Summoning Bell.</p>
+    </div>
+    <div class="card">
+      <h2>Find your listings</h2>
+      <div class="row">
+        <button class="btn" id="scan" type="button">Scan the whole market board</button>
+        <span class="subtle" id="scanNote">Checks every sellable item. Takes 1–3 minutes.</span>
+      </div>
+      <label for="addItem" class="lbl">Or add an item you listed</label>
+      <div class="combo">
+        <input id="addItem" type="search" placeholder="Search any item…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="addList" aria-autocomplete="list">
+        <ul id="addList" role="listbox" hidden></ul>
+      </div>
+      <details class="tracked"><summary id="trackedSum">Tracked items (0)</summary><div class="chips" id="trackedChips" data-empty="Nothing tracked yet."></div></details>
+    </div>
+  </section>
+
+  <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+  <div id="msg" hidden></div>
+
+  <section class="stats" aria-label="Summary" id="stats"></section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>On the board</h2><span class="subtle">Status compares your price with everyone else's listings of the same quality.</span></div>
+    <div class="tablebox">
+      <table>
+        <thead><tr>
+          <th>Item</th><th>Retainer</th><th class="r">Your price</th><th class="r">Qty</th><th>Status</th>
+          <th class="r">Suggested</th><th class="r">Sells / day</th><th class="r">Listed</th><th class="r">Data age</th>
+        </tr></thead>
+        <tbody id="activeRows" class="static"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>Sold and removed</h2><span class="subtle">Last 30 days, kept in this browser.</span></div>
+    <div class="tablebox">
+      <table>
+        <thead><tr>
+          <th>Item</th><th>Retainer</th><th class="r">Qty</th><th class="r">Price</th><th class="r">You got</th><th>Buyer</th><th class="r">When</th><th>Result</th>
+        </tr></thead>
+        <tbody id="logRows" class="static"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="subtle" style="margin:0;max-width:90ch">Universalis only sees a listing after someone running its uploader opens that item's market board, so a brand-new listing can take a while to show up, and statuses are only as fresh as the Data age column. A listing counts as <b>Sold</b> when it leaves the board and a sale with the same item, quality, quantity and price appears after it was last seen. <b>Off the board</b> means it disappeared with no matching sale: you pulled it, or the sale wasn't recorded. "You got" is after your retainer city's tax.</p>
+</div>
+
+<script src="common.js"></script>
+<script>
+const KEY = "ffml-v1";
+const DAY = 86400000;
+const S = Object.assign({ retainers: [], tracked: {}, active: {}, log: [], view: {}, lastCheck: 0 }, store.get(KEY, {}));
+const save = () => store.set(KEY, S);
+let busy = false, stopScan = false;
+
+const retSet = () => new Set(S.retainers.map(r => r.toLowerCase()));
+const isMine = (l, rs) => rs.has(String(l.retainerName || "").toLowerCase());
+const keyOf = (id, l) => l.listingID ? String(l.listingID) : `${id}|${l.retainerName}|${l.pricePerUnit}|${l.quantity}|${l.hq ? 1 : 0}`;
+const fromListing = (id, l, upload) => ({ key: keyOf(id, l), id, hq: !!l.hq, qty: l.quantity, price: l.pricePerUnit, retainer: l.retainerName, city: l.retainerCity, posted: (l.lastReviewTime || 0) * 1000, lastSeen: upload });
+const itemName = id => anyById.get(id)?.name || `Item ${id}`;
+
+/* Compare what was on the board last time with what is there now, for one item.
+   Returns the item's active listings and any sold / off-the-board log entries. */
+function reconcile({ id, listings, upload, sales, prev, rs, tax, now, claimed }) {
+  const mine = listings.filter(l => isMine(l, rs));
+  const nowKeys = new Set(mine.map(l => keyOf(id, l)));
+  const fresh = mine.filter(l => !prev.some(r => r.key === keyOf(id, l)));
+  const active = {}, logs = [];
+  for (const rec of prev) {
+    if (nowKeys.has(rec.key)) continue;
+    if (upload <= rec.lastSeen) { active[rec.key] = rec; continue; } // board not re-uploaded since: unknown, keep it
+    const ri = fresh.findIndex(l => String(l.retainerName).toLowerCase() === String(rec.retainer).toLowerCase() && !!l.hq === rec.hq && l.quantity === rec.qty);
+    if (ri >= 0) { // same retainer, item, quality and stack at a new price: a reprice, not a sale
+      const l = fresh.splice(ri, 1)[0];
+      active[keyOf(id, l)] = { ...fromListing(id, l, upload), firstSeen: rec.firstSeen, repricedFrom: rec.price };
+      continue;
+    }
+    const sale = sales.find(s => !claimed.has(s) && !!s.hq === rec.hq && s.quantity === rec.qty && s.pricePerUnit === rec.price && s.timestamp * 1000 >= rec.lastSeen - 10 * 60000);
+    if (sale) {
+      claimed.add(sale);
+      logs.push({ ...rec, status: "sold", buyer: sale.buyerName || "", at: sale.timestamp * 1000, gil: Math.floor(rec.price * rec.qty * (1 - cityTax(tax, rec.city) / 100)) });
+    } else {
+      logs.push({ ...rec, status: "gone", at: upload, gil: 0 });
+    }
+  }
+  for (const l of mine) {
+    const k = keyOf(id, l);
+    if (active[k]) { active[k].lastSeen = upload; continue; }
+    const p = prev.find(r => r.key === k);
+    active[k] = { ...fromListing(id, l, upload), firstSeen: p?.firstSeen ?? now, repricedFrom: p?.repricedFrom, price: l.pricePerUnit };
+  }
+  return { active, logs };
+}
+
+/* Market picture for one item and quality, excluding your own listings. */
+function marketView(listings, sales, rs, now) {
+  const out = {};
+  for (const q of ["nq", "hq"]) {
+    const isHQ = q === "hq";
+    const others = listings.filter(l => !isMine(l, rs) && !!l.hq === isHQ).map(l => [l.pricePerUnit, l.quantity]).sort((a, b) => a[0] - b[0]).slice(0, 80);
+    const s30 = sales.filter(s => !!s.hq === isHQ && s.timestamp * 1000 >= now - 30 * DAY);
+    const s7 = s30.filter(s => s.timestamp * 1000 >= now - 7 * DAY);
+    const sug = s7.length >= 3 ? suggestPrice(others.map(o => ({ pricePerUnit: o[0] })), s7, "7-day") : suggestPrice(others.map(o => ({ pricePerUnit: o[0] })), s30, "30-day");
+    out[q] = { others, perDay: s7.reduce((t, s) => t + s.quantity, 0) / 7, sug: sug.price, why: sug.why };
+  }
+  return out;
+}
+
+function listingStatus(rec, v) {
+  if (!v) return { cls: "mute", text: "Not checked yet" };
+  const others = v.others;
+  if (!others.length) return { cls: "good", text: "Only seller" };
+  const below = others.filter(o => o[0] < rec.price), tied = others.some(o => o[0] === rec.price);
+  if (!below.length) return tied ? { cls: "warn", text: "Tied for lowest" } : { cls: "good", text: "Lowest price" };
+  return { cls: "bad", text: `Undercut by ${fmt(rec.price - others[0][0])} g`, detail: `${below.length} listing${below.length > 1 ? "s" : ""}, ${fmt(below.reduce((t, o) => t + o[1], 0))} units below you` };
+}
+
+/* ---------- fetching ---------- */
+const LISTING_FIELDS = ["itemID", "lastUploadTime", "listings.listingID", "listings.retainerName", "listings.retainerCity", "listings.pricePerUnit", "listings.quantity", "listings.hq", "listings.lastReviewTime"];
+async function fetchCurrent(ids, fields = LISTING_FIELDS) {
+  const f = (ids.length > 1 ? fields.map(x => "items." + x) : fields).join(",");
+  return multi(await getJSON(`${API}/${WORLD}/${ids.join(",")}?entries=0&fields=${encodeURIComponent(f)}`));
+}
+async function fetchHistory(ids, withinSec) {
+  return multi(await getJSON(`${API}/history/${WORLD}/${ids.join(",")}?entriesWithin=${withinSec}&entriesToReturn=5000`));
+}
+function showMsg(text, bad) { const m = $("#msg"); m.className = "notice" + (bad ? " bad" : ""); m.textContent = text; m.hidden = !text; }
+const bar = p => { $("#bar").style.width = p + "%"; };
+function setBusy(mode) { // mode: "check", "scan" or false
+  busy = mode;
+  $("#check").disabled = !!mode; $("#check").textContent = mode === "check" ? "Checking…" : "Check my listings";
+  $("#scan").disabled = mode === "check"; $("#scan").textContent = mode === "scan" ? "Stop scan" : "Scan the whole market board";
+  if (!mode) setTimeout(() => bar(0), 600);
+}
+
+async function checkListings() {
+  if (busy) return;
+  if (!S.retainers.length) { showMsg("Add at least one retainer name first."); $("#retName").focus(); return; }
+  const ids = Object.keys(S.tracked).map(Number);
+  if (!ids.length) { showMsg("Nothing to check yet. Scan the whole market board, or add an item you've listed."); return; }
+  setBusy("check"); showMsg("");
+  try {
+    const now = Date.now(); const rs = retSet();
+    const within = 30 * 86400; // 30 days covers sale matching and the pricing fallback
+    const cur = {}, hist = {};
+    const batches = chunks(ids, 100); let done = 0; const total = batches.length * 2;
+    const tasks = batches.flatMap(b => [
+      async () => Object.assign(cur, await fetchCurrent(b)),
+      async () => Object.assign(hist, await fetchHistory(b, within))
+    ]);
+    await pool(tasks, 2, () => bar(100 * ++done / total));
+    const [tax] = await Promise.all([getTax(), loadIndex()]);
+    const claimed = new Set(); const nextActive = {}; const newLogs = [];
+    for (const id of ids) {
+      const c = cur[id]; if (!c) { for (const r of Object.values(S.active)) if (r.id === id) nextActive[r.key] = r; continue; }
+      const listings = c.listings || [], upload = c.lastUploadTime || 0, sales = (hist[id]?.entries || []);
+      const prev = Object.values(S.active).filter(r => r.id === id);
+      const { active, logs } = reconcile({ id, listings, upload, sales, prev, rs, tax, now, claimed });
+      Object.assign(nextActive, active); newLogs.push(...logs);
+      S.view[id] = { upload, ...marketView(listings, sales, rs, now) };
+      if (Object.keys(active).length) S.tracked[id].lastMine = now;
+    }
+    S.active = nextActive;
+    S.log = [...newLogs, ...S.log].filter(e => e.at >= now - 60 * DAY).slice(0, 400);
+    for (const [id, t] of Object.entries(S.tracked)) if (!t.manual && now - (t.lastMine || t.added || 0) > 7 * DAY) { delete S.tracked[id]; delete S.view[id]; }
+    S.lastCheck = now; save(); render();
+    const sold = newLogs.filter(e => e.status === "sold");
+    if (sold.length) showMsg(`${sold.length} listing${sold.length > 1 ? "s" : ""} sold since your last check, for ${fmt(sold.reduce((t, e) => t + e.gil, 0))} gil after tax.`);
+    else if (!Object.keys(S.active).length) showMsg(`None of your tracked items currently show a listing from ${S.retainers.join(", ")}. If you just listed something, Universalis may not have seen it yet.`);
+  } catch (e) {
+    showMsg(e.message === "network" ? "Couldn't reach Universalis. Check your connection and try again." : "Universalis returned an error (" + e.message + "). Wait a minute and try again.", true);
+  } finally { setBusy(false); }
+}
+
+async function scanAll() {
+  if (busy === "scan") { stopScan = true; $("#scanNote").textContent = "Stopping…"; return; }
+  if (busy) return;
+  if (!S.retainers.length) { showMsg("Add at least one retainer name first."); $("#retName").focus(); return; }
+  stopScan = false; setBusy("scan"); showMsg("");
+  let found = 0, stopped = false;
+  try {
+    const all = await loadIndex(); if (!all) throw new Error("item list");
+    const rs = retSet(); const now = Date.now();
+    const batches = chunks(all.map(x => x.id), 100); let done = 0;
+    const tasks = batches.map(b => async () => {
+      const cur = await fetchCurrent(b, ["itemID", "listings.retainerName"]);
+      for (const [id, c] of Object.entries(cur)) {
+        if ((c.listings || []).some(l => isMine(l, rs))) {
+          if (!S.tracked[id]) { S.tracked[id] = { manual: false, added: now }; found++; }
+          S.tracked[id].lastMine = now;
+        }
+      }
+    });
+    await pool(tasks, 3, () => { bar(100 * ++done / batches.length); $("#scanNote").textContent = `Scanned ${fmt(Math.min(done * 100, all.length))} of ${fmt(all.length)} items…`; }, () => stopScan);
+    stopped = stopScan;
+    S.scanAt = now; save(); render();
+  } catch (e) {
+    showMsg(e.message === "item list" ? "Couldn't load the item list. Reload the page and try again." : "The scan stopped because Universalis returned an error. Try again in a minute.", true);
+    setBusy(false); $("#scanNote").textContent = "Checks every sellable item. Takes 1–3 minutes."; return;
+  }
+  setBusy(false); stopScan = false;
+  $("#scanNote").textContent = stopped ? "Scan stopped." : `Scan finished. Found ${found} new item${found === 1 ? "" : "s"} with your listings.`;
+  if (Object.keys(S.tracked).length) await checkListings();
+  else showMsg(`No listings from ${S.retainers.join(", ")} on Famfrit. Check the spelling of your retainer names. If you listed recently, Universalis may not have seen those boards yet.`);
+}
+
+/* ---------- rendering ---------- */
+function cellItem(id, hq) {
+  const it = anyById.get(id); const td = document.createElement("td"); td.className = "item";
+  td.innerHTML = `${it ? `<img loading="lazy" alt="" src="${iconUrl(it.icon)}" onerror="this.remove()">` : ""}<div><a target="_blank" rel="noopener" href="https://universalis.app/market/${id}"></a> ${hq ? '<span class="chip HQ">HQ</span>' : ""}</div>`;
+  td.querySelector("a").textContent = itemName(id); return td;
+}
+function td(text, cls) { const c = document.createElement("td"); if (cls) c.className = cls; c.textContent = text; return c; }
+function empty(tbody, cols, text) { tbody.innerHTML = `<tr><td colspan="${cols}" class="empty"></td></tr>`; tbody.querySelector("td").textContent = text; }
+
+function render() {
+  // retainers
+  const rc = $("#retChips"); rc.replaceChildren();
+  S.retainers.forEach((r, i) => { const s = document.createElement("span"); s.className = "tag"; s.textContent = r; const b = document.createElement("button"); b.type = "button"; b.textContent = "×"; b.setAttribute("aria-label", "Remove " + r); b.onclick = () => { S.retainers.splice(i, 1); save(); render(); }; s.append(b); rc.append(s); });
+  // tracked
+  const ids = Object.keys(S.tracked).map(Number);
+  $("#trackedSum").textContent = `Tracked items (${ids.length})`;
+  const tc = $("#trackedChips"); tc.replaceChildren();
+  ids.sort((a, b) => itemName(a).localeCompare(itemName(b))).forEach(id => { const s = document.createElement("span"); s.className = "tag"; s.textContent = itemName(id); const b = document.createElement("button"); b.type = "button"; b.textContent = "×"; b.setAttribute("aria-label", "Stop tracking " + itemName(id)); b.onclick = () => { delete S.tracked[id]; delete S.view[id]; for (const [k, r] of Object.entries(S.active)) if (r.id === id) delete S.active[k]; save(); render(); }; s.append(b); tc.append(s); });
+  $("#updated").textContent = S.lastCheck ? "Checked " + ageText(S.lastCheck) + " ago" : "Not checked yet";
+
+  // active listings
+  const now = Date.now();
+  const recs = Object.values(S.active).map(r => ({ r, v: S.view[r.id]?.[r.hq ? "hq" : "nq"], up: S.view[r.id]?.upload }));
+  recs.forEach(x => x.st = listingStatus(x.r, x.v));
+  const order = { bad: 0, warn: 1, mute: 2, good: 3 };
+  recs.sort((a, b) => order[a.st.cls] - order[b.st.cls] || itemName(a.r.id).localeCompare(itemName(b.r.id)));
+  const ab = $("#activeRows"); ab.replaceChildren();
+  if (!S.retainers.length) empty(ab, 9, "Add your retainer names to start.");
+  else if (!recs.length) empty(ab, 9, ids.length ? "No active listings found on your tracked items. Press Check my listings to refresh." : "Scan the market board or add an item you've listed to find your listings.");
+  for (const { r, v, up, st } of recs) {
+    const tr = document.createElement("tr");
+    tr.append(cellItem(r.id, r.hq));
+    const rt = td(""); rt.innerHTML = `<div></div><div class="subtle"></div>`; rt.firstChild.textContent = r.retainer; rt.lastChild.textContent = CITY[r.city] || ""; tr.append(rt);
+    const pr = td(fmt(r.price), "r num gil"); if (r.repricedFrom) pr.title = `Repriced from ${fmt(r.repricedFrom)} g`; tr.append(pr);
+    tr.append(td(fmt(r.qty), "r num"));
+    const sc = td(""); sc.innerHTML = `<span class="pill ${st.cls}"></span>${st.detail ? '<div class="subtle"></div>' : ""}`; sc.firstChild.textContent = st.text; if (st.detail) sc.lastChild.textContent = st.detail; tr.append(sc);
+    const sg = td("", "r num");
+    if (v?.sug) { sg.innerHTML = `<span class="gil"></span><div class="subtle"></div>`; sg.firstChild.textContent = fmt(v.sug); sg.lastChild.textContent = v.sug < r.price ? "lower it" : v.sug > r.price * 1.05 && st.cls === "good" ? "room to raise" : "keep"; sg.title = v.why; } else sg.textContent = "–";
+    tr.append(sg);
+    tr.append(td(v ? (v.perDay < 10 ? v.perDay.toFixed(1) : fmt(v.perDay)) : "–", "r num"));
+    tr.append(td(r.posted ? ageText(r.posted) + " ago" : "–", "r num"));
+    tr.append(td(up ? ageText(up) : "–", "r num age " + ageClass(up)));
+    ab.append(tr);
+  }
+
+  // log
+  const recent = S.log.filter(e => e.at >= now - 30 * DAY);
+  const lb = $("#logRows"); lb.replaceChildren();
+  if (!recent.length) empty(lb, 8, "Nothing sold or removed yet. Sales show up here after a check finds a listing gone.");
+  for (const e of recent) {
+    const tr = document.createElement("tr");
+    tr.append(cellItem(e.id, e.hq), td(e.retainer), td(fmt(e.qty), "r num"), td(fmt(e.price), "r num gil"),
+      td(e.status === "sold" ? fmt(e.gil) : "–", "r num" + (e.status === "sold" ? " gil" : "")), td(e.buyer || "–"), td(ageText(e.at) + " ago", "r num"));
+    const rs = td(""); rs.innerHTML = `<span class="pill ${e.status === "sold" ? "good" : "mute"}"></span>`; rs.firstChild.textContent = e.status === "sold" ? "Sold" : "Off the board"; tr.append(rs);
+    lb.append(tr);
+  }
+
+  // summary
+  const st = $("#stats"); st.replaceChildren();
+  const soldR = recent.filter(e => e.status === "sold");
+  const undercut = recs.filter(x => x.st.cls === "bad").length;
+  const tiles = [
+    ["Active listings", fmt(recs.length), ""],
+    ["Gil on the board", fmt(recs.reduce((t, x) => t + x.r.price * x.r.qty, 0)), "before tax"],
+    ["Undercut", fmt(undercut), undercut ? "reprice these first" : "", undercut ? "alert" : ""],
+    ["Sold, last 30 days", fmt(soldR.length), fmt(soldR.reduce((t, e) => t + e.gil, 0)) + " gil after tax"]
+  ];
+  for (const [label, val, sub, cls] of tiles) { const d = document.createElement("div"); d.className = "stat " + (cls || ""); d.innerHTML = `<span class="lbl"></span><span class="v"></span><span class="subtle"></span>`; d.children[0].textContent = label; d.children[1].textContent = val; d.children[2].textContent = sub; st.append(d); }
+}
+
+/* ---------- wiring ---------- */
+$("#retForm").addEventListener("submit", e => {
+  e.preventDefault(); const v = $("#retName").value.trim();
+  if (!v) return;
+  if (!retSet().has(v.toLowerCase())) S.retainers.push(v);
+  $("#retName").value = ""; save(); render();
+});
+attachLookup($("#addItem"), $("#addList"), x => {
+  S.tracked[x.id] = { ...(S.tracked[x.id] || {}), manual: true, added: Date.now() };
+  save(); render(); checkListings();
+}, { clearOnPick: true });
+$("#check").addEventListener("click", checkListings);
+$("#scan").addEventListener("click", scanAll);
+render();
+loadIndex().then(render);
+if (S.retainers.length && Object.keys(S.tracked).length && Date.now() - S.lastCheck > 10 * 60000) checkListings();
+</script>
+</body></html>
